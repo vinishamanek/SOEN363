@@ -1,68 +1,112 @@
 import requests
-import pandas as pd
-import time
+from typing import Optional, Dict, List, Any
+
 
 class OpenLibraryDataCollector:
     def __init__(self):
-        """Initialize the collector with API configuration"""
-        self.base_url = "https://openlibrary.org/search.json"
+        """Initialize the Open Library Data Collector."""
+        self.book_api_url = "https://openlibrary.org/api/books"
+        self.search_api_url = "https://openlibrary.org/search.json"
+        self.author_api_url = "https://openlibrary.org/authors"
 
-    def fetch_openlibrary_data(self, start_index: int = 100, batch_size: int = 10):
-        """Fetch data from OpenLibrary API"""
-        books_data = []
+    def fetch_openlibrary_data(self, query: str, start_index: int = 0, max_results: int = 10) -> List[Dict]:
+        """Fetch data from Open Library API."""
+        params = {
+            'q': query,
+            'offset': start_index,
+            'limit': max_results
+        }
 
-        try:
-            params = {
-                'q': '*:*',  # fetching all books
-                'limit': batch_size,
-                'offset': start_index
-            }
-            
-            print(f"Requesting URL: {self.base_url} with params: {params}")  # Debugging info
-            response = requests.get(self.base_url, params=params)
-            if response.status_code == 200:
-                works = response.json()
-                
-                for doc in works.get('docs', []):
-                    # extracting only the necessary fields
-                    book_info = {
-                        'Title': doc.get('title'),
-                        'Author': ', '.join([author for author in doc.get('author_name', [])]),
-                        'First Publish Year': doc.get('first_publish_year'),
-                        'ISBN': ', '.join(doc.get('isbn', [])) if doc.get('isbn') else None,
-                        'Subjects': ', '.join(doc.get('subject', [])) if doc.get('subject') else None
-                    }
-                    books_data.append(book_info)
+        print(f"Fetching data with query: {query}")
+        response = requests.get(self.search_api_url, params=params)
+        if response.status_code == 200:
+            books_data = []
+            data = response.json()
 
-                return books_data
-            else:
-                print(f"Error: Received status code {response.status_code} with response: {response.text}")  # Improved error logging
-                return []
-        except Exception as e:
-            print(f"Error fetching OpenLibrary data: {e}")
+            for item in data.get('docs', []):
+                # Extract book details
+                book_data = {
+                    "title": item.get("title"),
+                    "authors": [{"name": author} for author in item.get("author_name", [])],
+                    "publisher": item.get("publisher", []),
+                    "publish_date": item.get("first_publish_year"),
+                    "language_code": item.get("language", []),
+                    "isbn_10": [isbn for isbn in item.get("isbn", []) if len(isbn) == 10],
+                    "isbn_13": [isbn for isbn in item.get("isbn", []) if len(isbn) == 13],
+                    "openlibrary_work_id": item.get("key"),
+                    "number_of_pages": item.get("number_of_pages_median"),
+                    "description": item.get("first_sentence"),
+                    "subjects": item.get("subject", []),
+                }
+
+                books_data.append(book_data)
+
+            return books_data
+        else:
+            print(f"Error fetching data: {response.status_code}, {response.text}")
             return []
 
-    def fetch_and_print(self, total_records: int = 10, batch_size: int = 1):
-        """Fetch data in batches and print"""
-        all_books = []
+    def fetch_author_details(self, author_id: str) -> Dict:
+        """Fetch author details by Open Library Author ID."""
+        url = f"{self.author_api_url}/{author_id}.json"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "name": data.get("name"),
+                "alternate_names": data.get("alternate_names", []),
+                "birth_date": data.get("birth_date", None),
+                "bio": data.get("bio", {}).get("value") if isinstance(data.get("bio"), dict) else data.get("bio"),
+                "wikipedia_url": data.get("wikipedia", None),
+                "key": data.get("key"),
+            }
+        else:
+            print(f"Error fetching author details: {response.status_code}, {response.text}")
+            return {}
 
-        for offset in range(0, total_records, batch_size):
-            print(f"Fetching records {offset} to {offset + batch_size}...")
-            books = self.fetch_openlibrary_data(start_index=offset, batch_size=batch_size)
-            all_books.extend(books)
+    @staticmethod
+    def format_for_display(book: Dict) -> str:
+        """Format book data for display."""
+        authors = ", ".join([author['name'] for author in book['authors']])
+        publishers = ", ".join(book.get('publisher', []))
+        subjects = ", ".join(book.get('subjects', []))
+        return f"""
+        Book Information:
+        -----------------
+        Title: {book['title']}
+        Authors: {authors}
+        Publishers: {publishers}
+        Publish Date: {book['publish_date']}
+        Language Code: {", ".join(book['language_code'])}
+        ISBN-10: {", ".join(book['isbn_10'])}
+        ISBN-13: {", ".join(book['isbn_13'])}
+        Open Library Work ID: {book['openlibrary_work_id']}
+        Number of Pages: {book['number_of_pages']}
+        Description: {book['description']}
+        Subjects: {subjects}
+        """
 
-            # printing each book individually
-            for book in books:
-                print(book)
+    @staticmethod
+    def format_author_for_display(author: Dict) -> str:
+        """Format author data for display."""
+        alternate_names = ", ".join(author.get("alternate_names", []))
+        return f"""
+        Author Information:
+        -------------------
+        Name: {author['name']}
+        Alternate Names: {alternate_names}
+        Birth Date: {author['birth_date']}
+        Bio: {author['bio']}
+        Wikipedia URL: {author['wikipedia_url']}
+        """
 
-            # to respect API rate limits, setting a sleep time of 1 second
-            time.sleep(1)
-
-        # convert to pandas
-        df = pd.DataFrame(all_books)
-        print(df)
-
-# main script
 if __name__ == "__main__":
     collector = OpenLibraryDataCollector()
-    collector.fetch_and_print(total_records=10, batch_size=1)
+
+    books = collector.fetch_openlibrary_data(query="Harry Potter", max_results=3)
+    for book in books:
+        print(collector.format_for_display(book))
+
+    author_id = "OL23919A"  # J.K. Rowling
+    author = collector.fetch_author_details(author_id)
+    print(collector.format_author_for_display(author))
