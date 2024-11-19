@@ -8,6 +8,8 @@ class OpenLibraryDataCollector:
         self.book_api_url = "https://openlibrary.org/api/books"
         self.search_api_url = "https://openlibrary.org/search.json"
         self.author_api_url = "https://openlibrary.org/authors"
+        self.works_api_url = "https://openlibrary.org/works"
+        self.editions_api_url = "https://openlibrary.org/books"
 
     def fetch_book_by_isbn(self, isbn: str) -> Dict:
         """Fetch book details by ISBN."""
@@ -30,18 +32,22 @@ class OpenLibraryDataCollector:
         if response.status_code == 200:
             books_data = []
             for doc in response.json().get('docs', []):
+                authors = [{"name": name, "key": key} for name, key in zip(
+                    doc.get("author_name", []), doc.get("author_key", [])
+                )]
+                author_details = [self.fetch_author_details(author["key"]) for author in authors]
+
                 book = {
                     "title": doc.get("title"),
-                    "authors": [{"name": name, "key": key} for name, key in zip(
-                        doc.get("author_name", []), doc.get("author_key", [])
-                    )],
+                    "authors": authors,
+                    "author_details": author_details,
                     "number_of_pages": doc.get("number_of_pages_median"),
                     "pagination": doc.get("pagination"),
                     "weight": doc.get("weight"),
-                    "isbn_10": doc.get("isbn", [])[:10],
-                    "isbn_13": doc.get("isbn", [])[:13],
+                    "isbn_10": [isbn for isbn in doc.get("isbn", []) if len(isbn) == 10][-1:],
+                    "isbn_13": [isbn for isbn in doc.get("isbn", []) if len(isbn) == 13][-1:],
                     "openlibrary_edition_id": doc.get("edition_key", [None])[0],
-                    "openlibrary_work_id": doc.get("key"),
+                    "openlibrary_work_id": doc.get("key").split('/')[-1],  
                     "google_books_id": doc.get("google_books_id"),
                     "goodreads_id": doc.get("goodreads_id"),
                     "librarything_id": doc.get("librarything_id"),
@@ -89,10 +95,52 @@ class OpenLibraryDataCollector:
             print(f"Error fetching author details: {response.status_code}, {response.text}")
             return {}
 
+    def fetch_work_details(self, work_id: str) -> Dict:
+        """Fetch work details by Open Library Work ID."""
+        url = f"{self.works_api_url}/{work_id}.json"
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Error fetching work details: {response.status_code}, {response.text}")
+            return {}
+
+    def fetch_edition_details(self, edition_id: str) -> Dict:
+        """Fetch edition details by Open Library Edition ID."""
+        url = f"{self.editions_api_url}/{edition_id}.json"
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Error fetching edition details: {response.status_code}, {response.text}")
+            return {}
+
+    def fetch_cover_image(self, cover_id: int, size: str = "L") -> str:
+        """Fetch cover image URL by cover ID and size."""
+        return f"{self.covers_api_url}/id/{cover_id}-{size}.jpg"
+
+    def collect_all_data_by_isbn(self, isbn: str) -> Dict:
+        """Collect all relevant data for a given ISBN."""
+        book_data = self.fetch_book_by_isbn(isbn)
+        if not book_data:
+            return {}
+
+        edition_id = book_data.get('identifiers', {}).get('openlibrary', [None])[0]
+        work_id = book_data.get('works', [{}])[0].get('key', '').split('/')[-1] if book_data.get('works') else None
+
+        edition_data = self.fetch_edition_details(edition_id) if edition_id else {}
+        work_data = self.fetch_work_details(work_id) if work_id else {}
+
+        return {
+            "book_data": book_data,
+            "edition_data": edition_data,
+            "work_data": work_data,
+        }
+
     @staticmethod
     def format_book_data(book: Dict) -> str:
         """Format book data for display."""
-        authors = ", ".join([f"{author['name']} (Key: {author['key']})" for author in book["authors"]])
+        authors = ", ".join([f"{author['name']} (Key: {author.get('key', 'N/A')})" for author in book["authors"]])
         publishers = ", ".join(book.get("publisher", []))
         subjects = ", ".join(book.get("subjects", []))
         return f"""
@@ -103,8 +151,8 @@ class OpenLibraryDataCollector:
         Number of Pages: {book['number_of_pages']}
         Pagination: {book['pagination']}
         Weight: {book['weight']}
-        ISBN-10: {', '.join(book['isbn_10'])}
-        ISBN-13: {', '.join(book['isbn_13'])}
+        isbn_10: {book['isbn_10']},  
+        isbn_13: {book['isbn_13']},  
         Open Library Edition ID: {book['openlibrary_edition_id']}
         Open Library Work ID: {book['openlibrary_work_id']}
         Google Books ID: {book['google_books_id']}
@@ -120,6 +168,22 @@ class OpenLibraryDataCollector:
         Borrow URL: {book['borrow_url']}
         Availability: {book['availability']}
         """
+        
+    def _insert_data(self, table: str, data: Dict):
+        """Insert data into a PostgreSQL table."""
+        if not self.cursor:
+            print("Database connection not established.")
+            return
+
+        try:
+            columns = ", ".join(data.keys())
+            values = ", ".join([f"'{v}'" if isinstance(v, str) else str(v) for v in data.values()])
+            insert_query = f"INSERT INTO {table} ({columns}) VALUES ({values})"
+            self.cursor.execute(insert_query)
+            self.connection.commit()
+            print(f"Data inserted into {table} successfully.")
+        except Exception as e:
+            print(f"Error inserting data into {table}: {e}")
 
     @staticmethod
     def format_author_data(author: Dict) -> str:
@@ -146,15 +210,56 @@ class OpenLibraryDataCollector:
         Open Library Key: {author['openlibrary_key']}
         """
 
+    @staticmethod
+    def print_collected_data(data: Dict) -> None:
+        """Print the collected data in a readable format."""
+        if not data:
+            print("No data found.")
+            return
+        
+        print("\nEdition Data:")
+        edition_data = data.get("edition_data", {})
+        if edition_data:
+            print(edition_data)
+        else:
+            print("No edition data available.")
+
+def generate_isbn_range(start_isbn, end_isbn, prefix=''):
+    """
+    Generate a range of ISBNs with optional prefix
+    
+    Args:
+        start_isbn (str): Starting ISBN
+        end_isbn (str): Ending ISBN
+        prefix (str, optional): Prefix to add to ISBNs
+    
+    Returns:
+        List of ISBNs in the specified range
+    """
+    start = int(start_isbn)
+    end = int(end_isbn)
+    
+    return [f"{prefix}{str(isbn).zfill(len(start_isbn))}" for isbn in range(start, end + 1)]
+
 
 if __name__ == "__main__":
     collector = OpenLibraryDataCollector()
 
-    # Example: Fetch and display books
-    books = collector.fetch_book_details(query="Harry Potter", max_results=1)
-    for book in books:
-        print(collector.format_book_data(book))
+    isbns = generate_isbn_range('9780000000033', '9780000000035')
 
-    author_id = "OL23919A"  # J.K. Rowling
-    author = collector.fetch_author_details(author_id)
-    print(collector.format_author_data(author))
+    for isbn in isbns:
+        print(f"\n--- Processing ISBN: {isbn} ---")
+        
+        isbn_data = collector.collect_all_data_by_isbn(isbn)
+        
+        books = collector.fetch_book_details(query=isbn, max_results=1)
+        
+        if books:
+            book = books[0]
+            print(collector.format_book_data(book))
+            
+            for author in book["author_details"]:
+                print(collector.format_author_data(author))
+        
+        collector.print_collected_data(isbn_data)
+        
