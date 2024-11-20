@@ -33,8 +33,10 @@ CREATE DOMAIN email_address AS VARCHAR(255)
 
 CREATE DOMAIN isbn_type_13 AS CHAR(13)
     CHECK (VALUE ~ '^\d{13}$');
+
 CREATE DOMAIN isbn_type_10 AS CHAR(10)
-    CHECK (VALUE ~ '^\d{10}$');
+    CHECK (VALUE ~ '^\d{9}[\dX]$');
+
 CREATE DOMAIN url_type AS VARCHAR(2048)
     CHECK (VALUE SIMILAR TO 'https?://%');
 
@@ -43,7 +45,7 @@ CREATE TYPE author_status AS ENUM ('Active', 'Deceased', 'Unknown');
 
 CREATE TABLE publishers (
     publisher_id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) UNIQUE NOT NULL,
     founding_year INTEGER,
     country VARCHAR(100)
 );
@@ -100,3 +102,5 @@ CREATE TABLE book_subjects (
     subject VARCHAR(255),
     PRIMARY KEY (book_id, subject)
 );
+
+SELECT pg_size_pretty( pg_database_size('my_database') );

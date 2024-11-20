@@ -51,7 +51,7 @@ class OpenLibraryDataCollector:
                     "google_books_id": doc.get("google_books_id"),
                     "goodreads_id": doc.get("goodreads_id"),
                     "librarything_id": doc.get("librarything_id"),
-                    "subjects": doc.get("subject", []),
+                    "subjects": doc.get("subject", []),  
                     "publish_date": doc.get("first_publish_year"),
                     "publisher": doc.get("publisher", []),
                     "publish_place": doc.get("publish_place"),
@@ -262,4 +262,3 @@ if __name__ == "__main__":
                 print(collector.format_author_data(author))
         
         collector.print_collected_data(isbn_data)
-        
