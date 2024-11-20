@@ -1,31 +1,11 @@
 import requests
-from typing import Dict, List, Optional
-
+from typing import Dict, Optional
 
 class PublisherDataCollector:
     def __init__(self):
         """Initialize the Publisher Data Collector."""
-        self.opencorporates_api_url = "https://api.opencorporates.com/v0.4/companies/search"
         self.crossref_api_url = "https://api.crossref.org/members"
         self.openlibrary_api_url = "https://openlibrary.org/publishers"
-
-    def fetch_publisher_from_opencorporates(self, query: str) -> Optional[Dict]:
-        """Fetch publisher details from OpenCorporates."""
-        params = {"q": query}
-        response = requests.get(self.opencorporates_api_url, params=params)
-        if response.status_code == 200:
-            companies = response.json().get("results", {}).get("companies", [])
-            if companies:
-                company = companies[0].get("company", {})
-                return {
-                    "name": company.get("name"),
-                    "description": company.get("summary"),
-                    "founded_year": company.get("date_of_creation", "").split("-")[0],
-                    "website": company.get("industry_code", {}).get("url"),
-                    "country_code": company.get("jurisdiction_code"),
-                }
-        print(f"Error fetching from OpenCorporates: {response.status_code}, {response.text}")
-        return None
 
     def fetch_publisher_from_crossref(self, query: str) -> Optional[Dict]:
         """Fetch publisher details from Crossref."""
@@ -62,19 +42,17 @@ class PublisherDataCollector:
 
     def aggregate_publisher_data(self, name: str, openlibrary_id: str) -> Dict:
         """Combine data from multiple APIs to create a complete publisher profile."""
-        opencorporates_data = self.fetch_publisher_from_opencorporates(name)
         crossref_data = self.fetch_publisher_from_crossref(name)
         openlibrary_data = self.fetch_publisher_from_openlibrary(openlibrary_id)
 
         return {
             "name": name,
-            "description": opencorporates_data.get("description") if opencorporates_data else openlibrary_data.get("description"),
-            "founded_year": opencorporates_data.get("founded_year") if opencorporates_data else None,
+            "description": crossref_data.get("description") if crossref_data else openlibrary_data.get("description"),
+            "founded_year": crossref_data.get("founded_year") if crossref_data else None,
             "website": crossref_data.get("website") if crossref_data else None,
-            "country_code": opencorporates_data.get("country_code") if opencorporates_data else crossref_data.get("country_code"),
-            "openlibrary_publisher_id": openlibrary_data.get("openlibrary_publisher_id") if openlibrary_data else None,
+            "country_code": crossref_data.get("country_code") if crossref_data else None,
+            "openlibrary_publisher_id": openlibrary_id,
         }
-
 
 if __name__ == "__main__":
     collector = PublisherDataCollector()
