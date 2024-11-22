@@ -126,6 +126,16 @@ def insert_subject(cursor, subjects: List[str]) -> List[int]:
  
 def insert_book(cursor, book_data: Dict) -> Optional[int]:
     """Insert book with direct ISBN handling."""
+    isbn10 = book_data.get("isbn_10", "").replace("-", "")  # Remove hyphens
+    isbn13 = book_data.get("isbn_13", "").replace("-", "")  # Remove hyphens
+    
+    # Only keep digits
+    isbn10 = ''.join(filter(str.isdigit, isbn10))
+    isbn13 = ''.join(filter(str.isdigit, isbn13))
+
+    print(f"ISBN10: {isbn10}, ISBN13: {isbn13}")
+        # Pad ISBN10 with leading zeros if needed
+    isbn10 = isbn10.zfill(10) if isbn10 else None
     try:
         cursor.execute("""
             INSERT INTO Book (
@@ -143,8 +153,8 @@ def insert_book(cursor, book_data: Dict) -> Optional[int]:
                 description = EXCLUDED.description
             RETURNING book_id;
         """, (
-            book_data.get("isbn_10"),
-            book_data.get("isbn_13"),
+            isbn10,
+            isbn13,
             book_data.get("title"),
             book_data.get("subtitle"),
             book_data.get("description"),
