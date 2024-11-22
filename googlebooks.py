@@ -143,7 +143,7 @@ class GoogleBooksDataCollector:
         """
 
 if __name__ == "__main__":
-    API_KEY = os.getenv("GOOGLE_API_KEY")
+    API_KEY = os.getenv("GOOGLE_API_KEY_3")
     if not API_KEY:
         raise ValueError("Missing GOOGLE_API_KEY environment variable")
         

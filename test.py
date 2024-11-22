@@ -303,6 +303,7 @@ def insert_or_update_book_data(connection, book_data: Dict, openlibrary_api):
 
             # Insert physical book information if dimensions are provided
             dimensions = book_data.get("dimensions", {})
+            # print(dimensions)
             if dimensions:
                 cursor.execute("""
                     INSERT INTO PhysicalBook (
@@ -380,7 +381,7 @@ def main():
                 if google_data or openlibrary_data:
                     # Combine data from both APIs
                     combined_data = merge_book_data(google_data, openlibrary_data)
-                    # print(json.dumps(combined_data, indent=4, ensure_ascii=False))
+                    print(json.dumps(combined_data, indent=4, ensure_ascii=False))
 
                     insert_or_update_book_data(connection, combined_data, openlibrary_api)
                 else:
