@@ -1,10 +1,14 @@
 import psycopg2
-from psycopg2 import sql
 from typing import Dict, List, Optional, Union
-import os
 from datetime import datetime
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def connect_to_db():
+    """Establish a connection to the PostgreSQL database."""
     try:
         connection = psycopg2.connect(
             dbname=os.getenv("DB_NAME"),
@@ -13,13 +17,15 @@ def connect_to_db():
             host=os.getenv("DB_HOST"),
             port=os.getenv("DB_PORT")
         )
-        print("Connected to database.")
+        print("Connected to the database.")
         return connection
     except psycopg2.Error as e:
         print(f"Database connection error: {e}")
         return None
 
+
 def format_year(year_str: str) -> Optional[int]:
+    """Format the year string to an integer if valid."""
     if not year_str:
         return None
     try:
@@ -29,24 +35,14 @@ def format_year(year_str: str) -> Optional[int]:
     except ValueError:
         return None
 
+
 def map_maturity_rating(rating: str) -> str:
+    """Map the maturity rating to the database enum."""
     return 'MATURE' if rating == 'MATURE' else 'NOT_MATURE'
 
-def insert_rating(cursor, rating_data: Dict) -> Optional[int]:
-    if not rating_data:
-        return None
-    try:
-        cursor.execute("""
-            INSERT INTO Rating (avg_rating, rating_count)
-            VALUES (%s, %s)
-            RETURNING rating_id;
-        """, (rating_data.get('avg_rating'), rating_data.get('rating_count')))
-        return cursor.fetchone()[0]
-    except Exception as e:
-        print(f"Error inserting rating: {e}")
-        return None
 
 def insert_publisher(cursor, publisher_name: str) -> Optional[int]:
+    """Insert a publisher into the database."""
     if not publisher_name:
         return None
     try:
@@ -62,21 +58,21 @@ def insert_publisher(cursor, publisher_name: str) -> Optional[int]:
         print(f"Error inserting publisher: {e}")
         return None
 
+
 def insert_author(cursor, authors: List[Union[str, Dict]]) -> List[int]:
+    """Insert authors into the database and return their IDs."""
     author_ids = []
     for author in authors:
         if not author:
             continue
         author_name = author['name'] if isinstance(author, dict) else author
-        openlib_id = author.get('openlib_id') if isinstance(author, dict) else None
         try:
             cursor.execute("""
-                INSERT INTO Author (name, author_openlib_id)
-                VALUES (%s, %s)
-                ON CONFLICT (name) DO UPDATE 
-                SET author_openlib_id = COALESCE(EXCLUDED.author_openlib_id, Author.author_openlib_id)
+                INSERT INTO Author (name)
+                VALUES (%s)
+                ON CONFLICT (name) DO NOTHING
                 RETURNING author_id;
-            """, (author_name, openlib_id))
+            """, (author_name,))
             result = cursor.fetchone()
             if result:
                 author_ids.append(result[0])
@@ -84,7 +80,9 @@ def insert_author(cursor, authors: List[Union[str, Dict]]) -> List[int]:
             print(f"Error inserting author {author_name}: {e}")
     return author_ids
 
+
 def insert_category(cursor, categories: List[str]) -> List[int]:
+    """Insert categories into the database and return their IDs."""
     category_ids = []
     for category in categories:
         if not category:
@@ -104,7 +102,9 @@ def insert_category(cursor, categories: List[str]) -> List[int]:
             print(f"Error inserting category {category}: {e}")
     return category_ids
 
+
 def insert_subject(cursor, subjects: List[str]) -> List[int]:
+    """Insert subjects into the database and return their IDs."""
     subject_ids = []
     for subject in subjects:
         if not subject:
@@ -124,23 +124,28 @@ def insert_subject(cursor, subjects: List[str]) -> List[int]:
             print(f"Error inserting subject {subject}: {e}")
     return subject_ids
 
+
 def insert_book(cursor, book_data: Dict) -> Optional[int]:
-    """Insert book with direct ISBN handling."""
+    """
+    Insert or update a book with rating attributes directly in the Book table.
+    """
     try:
         cursor.execute("""
             INSERT INTO Book (
                 isbn10, isbn13, title, subtitle, description,
                 language_code, publication_year, page_count,
-                maturity_rating, google_books_id,
-                google_preview_link, google_info_link,
-                google_canonical_link
+                maturity_rating, avg_rating, ratings_count,
+                google_books_id, google_preview_link,
+                google_info_link, google_canonical_link
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (isbn13) WHERE isbn13 IS NOT NULL DO
             UPDATE SET 
                 title = EXCLUDED.title,
                 subtitle = EXCLUDED.subtitle,
-                description = EXCLUDED.description
+                description = EXCLUDED.description,
+                avg_rating = COALESCE(EXCLUDED.avg_rating, Book.avg_rating),
+                ratings_count = COALESCE(EXCLUDED.ratings_count, Book.ratings_count)
             RETURNING book_id;
         """, (
             book_data.get("isbn_10"),
@@ -152,6 +157,8 @@ def insert_book(cursor, book_data: Dict) -> Optional[int]:
             format_year(book_data.get("published_year")),
             book_data.get("page_count"),
             map_maturity_rating(book_data.get("maturity_rating")),
+            book_data.get("average_rating"),  # avg_rating directly in Book
+            book_data.get("ratings_count"),  # ratings_count directly in Book
             book_data.get("google_books_id"),
             book_data.get("google_preview_link"),
             book_data.get("google_info_link"),
@@ -162,7 +169,9 @@ def insert_book(cursor, book_data: Dict) -> Optional[int]:
         print(f"Error inserting book {book_data.get('title')}: {e}")
         return None
 
+
 def insert_price(cursor, book_id: int, price_data: Dict) -> Optional[int]:
+    """Insert or update price data for a book."""
     if not price_data or not book_id:
         return None
     try:
@@ -194,96 +203,85 @@ def insert_price(cursor, book_id: int, price_data: Dict) -> Optional[int]:
         print(f"Error inserting price: {e}")
         return None
 
+
 def handle_book_format(cursor, book_id: int, book_data: Dict):
+    """Handle the book's format (PhysicalBook or EBook)."""
     try:
         if book_data.get("isEbook"):
+            ebook_url = book_data.get("ebook_url")
+            if not ebook_url:
+                ebook_url = "https://example.com/default-ebook-url"  # Fallback URL or consider skipping
             cursor.execute("""
                 INSERT INTO EBook (book_id, ebook_url)
                 VALUES (%s, %s)
                 ON CONFLICT (book_id) DO UPDATE
                 SET ebook_url = EXCLUDED.ebook_url;
-            """, (book_id, book_data.get("ebook_url")))
+            """, (book_id, ebook_url))
         else:
             format_value = book_data.get("physical_format", "Hardcover").capitalize()
             if format_value not in ['Hardcover', 'Paperback']:
                 format_value = 'Hardcover'
             cursor.execute("""
                 INSERT INTO PhysicalBook (book_id, format)
-                VALUES (%s, %s::FORMAT_TYPE)
+                VALUES (%s, %s::format_type)
                 ON CONFLICT (book_id) DO UPDATE
                 SET format = EXCLUDED.format;
             """, (book_id, format_value))
     except Exception as e:
         print(f"Error handling book format: {e}")
 
-def link_book_author(cursor, book_id: int, author_ids: List[int]):
-    for author_id in author_ids:
-        try:
-            cursor.execute("""
-                INSERT INTO BookAuthor (book_id, author_id)
-                VALUES (%s, %s)
-                ON CONFLICT DO NOTHING;
-            """, (book_id, author_id))
-        except Exception as e:
-            print(f"Error linking book-author: {e}")
-
-def link_book_publisher(cursor, book_id: int, publisher_id: int):
-    if not publisher_id or not book_id:
-        return
-    try:
-        cursor.execute("""
-            INSERT INTO BookPublisher (book_id, publisher_id)
-            VALUES (%s, %s)
-            ON CONFLICT DO NOTHING;
-        """, (book_id, publisher_id))
-    except Exception as e:
-        print(f"Error linking book-publisher: {e}")
-
-def link_book_category(cursor, book_id: int, category_ids: List[int]):
-    for category_id in category_ids:
-        try:
-            cursor.execute("""
-                INSERT INTO BookCategory (book_id, category_id)
-                VALUES (%s, %s)
-                ON CONFLICT DO NOTHING;
-            """, (book_id, category_id))
-        except Exception as e:
-            print(f"Error linking book-category: {e}")
-
-def link_book_subject(cursor, book_id: int, subject_ids: List[int]):
-    for subject_id in subject_ids:
-        try:
-            cursor.execute("""
-                INSERT INTO BookSubject (book_id, subject_id)
-                VALUES (%s, %s)
-                ON CONFLICT DO NOTHING;
-            """, (book_id, subject_id))
-        except Exception as e:
-            print(f"Error linking book-subject: {e}")
 
 def insert_data(connection, books: List[Dict]):
+    """
+    Insert all book-related data into the database with ratings as part of Book.
+    """
     with connection.cursor() as cursor:
         for book in books:
             try:
                 cursor.execute("BEGIN;")
 
+                # Insert book and get book ID
                 book_id = insert_book(cursor, book)
                 if not book_id:
                     cursor.execute("ROLLBACK;")
                     continue
 
+                # Insert related data
                 author_ids = insert_author(cursor, book.get("authors", []))
                 publisher_id = insert_publisher(cursor, book.get("publisher"))
                 category_ids = insert_category(cursor, book.get("categories", []))
                 subject_ids = insert_subject(cursor, book.get("subjects", []))
 
-                link_book_author(cursor, book_id, author_ids)
-                link_book_publisher(cursor, book_id, publisher_id)
-                link_book_category(cursor, book_id, category_ids)
-                link_book_subject(cursor, book_id, subject_ids)
+                # Link related data
+                for author_id in author_ids:
+                    cursor.execute("""
+                        INSERT INTO BookAuthor (book_id, author_id)
+                        VALUES (%s, %s)
+                        ON CONFLICT DO NOTHING;
+                    """, (book_id, author_id))
+                if publisher_id:
+                    cursor.execute("""
+                        INSERT INTO BookPublisher (book_id, publisher_id)
+                        VALUES (%s, %s)
+                        ON CONFLICT DO NOTHING;
+                    """, (book_id, publisher_id))
+                for category_id in category_ids:
+                    cursor.execute("""
+                        INSERT INTO BookCategory (book_id, category_id)
+                        VALUES (%s, %s)
+                        ON CONFLICT DO NOTHING;
+                    """, (book_id, category_id))
+                for subject_id in subject_ids:
+                    cursor.execute("""
+                        INSERT INTO BookSubject (book_id, subject_id)
+                        VALUES (%s, %s)
+                        ON CONFLICT DO NOTHING;
+                    """, (book_id, subject_id))
 
+                # Handle book formats (eBook or physical book)
                 handle_book_format(cursor, book_id, book)
 
+                # Insert price if available
                 if book.get("price_info"):
                     insert_price(cursor, book_id, book["price_info"])
 

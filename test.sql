@@ -18,6 +18,8 @@ DROP TABLE IF EXISTS BookCategory CASCADE;
 DROP TABLE IF EXISTS BookAuthor CASCADE;
 DROP TABLE IF EXISTS BookPublisher CASCADE;
 DROP TABLE IF EXISTS Price CASCADE;
+DROP TABLE IF EXISTS Rating CASCADE;
+DROP TABLE IF EXISTS BookRating CASCADE;
 DROP DOMAIN IF EXISTS ISBN_TYPE10 CASCADE;
 DROP DOMAIN IF EXISTS ISBN_TYPE13 CASCADE;
 DROP DOMAIN IF EXISTS RATING_TYPE CASCADE;
@@ -61,7 +63,7 @@ WHERE typtype = 'e'
 CREATE TYPE FORMAT_TYPE AS ENUM ('Hardcover', 'Paperback', 'Ebook');
 CREATE TYPE MATURITY_RATING AS ENUM ('NOT_MATURE', 'MATURE');
 
-CREATE DOMAIN ISBN_TYPE10 AS VARCHAR(10)
+CREATE DOMAIN ISBN_TYPE10 AS VARCHAR(13)
     CONSTRAINT valid_isbn10 CHECK (
         VALUE ~ '^[0-9]{9}[0-9X]$'
     );
@@ -84,8 +86,7 @@ CREATE TABLE Publisher (
 
 CREATE TABLE Author (
                         author_id SERIAL PRIMARY KEY,
-                        name VARCHAR(100) UNIQUE,
-                        author_openlib_id VARCHAR(15) UNIQUE
+                        name VARCHAR(100) UNIQUE
 );
 
 CREATE TABLE Category (
@@ -98,16 +99,10 @@ CREATE TABLE Subject (
                          name VARCHAR(500) NOT NULL UNIQUE
 );
 
-CREATE TABLE Rating (
-                        rating_id SERIAL PRIMARY KEY,
-                        avg_rating RATING_TYPE,
-                        rating_count INTEGER CHECK (rating_count >= 0)
-);
-
 CREATE TABLE Book (
                       book_id SERIAL PRIMARY KEY,
-                      isbn10 ISBN_TYPE10 UNIQUE,
-                      isbn13 ISBN_TYPE13 UNIQUE,
+                      isbn10 ISBN_TYPE10 DEFAULT NULL UNIQUE,
+                      isbn13 ISBN_TYPE13 DEFAULT NULL UNIQUE,
                       title VARCHAR(500) NOT NULL,
                       subtitle VARCHAR(500),
                       description TEXT,
@@ -117,6 +112,8 @@ CREATE TABLE Book (
                                   publication_year <= EXTRACT(YEAR FROM CURRENT_DATE)
                           ),
                       page_count INTEGER,
+                      avg_rating RATING_TYPE,
+                      ratings_count INTEGER CHECK (ratings_count >= 0),
                       maturity_rating MATURITY_RATING,
                       openlibrary_work_id VARCHAR(50) UNIQUE,
                       openlibrary_edition_id VARCHAR(50) UNIQUE,
@@ -157,6 +154,7 @@ CREATE TABLE Price (
                        CONSTRAINT valid_retail_price CHECK (retail_price IS NULL OR retail_price >= 0),
                        CONSTRAINT unique_price UNIQUE (book_id, country, on_sale_date)
 );
+
 
 CREATE TABLE BookAuthor (
                             book_id INTEGER REFERENCES Book(book_id)

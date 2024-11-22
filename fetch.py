@@ -1,13 +1,8 @@
-import os
 import random
 import string
-import time
-from typing import List, Dict, Optional, Union
 import requests
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from typing import List, Dict, Optional
+import time
 
 
 class GoogleBooksAPI:
@@ -46,15 +41,17 @@ class GoogleBooksAPI:
         print("All keys exhausted or maximum retries reached. Skipping this request.")
         return None
 
-    def search_books(self, query: str, max_results: int = 10) -> List[Dict]:
-        """Search for books using a query."""
-        params = {"q": query, "maxResults": max_results, "projection": "full"}
-        response = self._api_request(params)
-        if not response:
-            return []
-
-        items = response.json().get("items", [])
-        return [self._parse_book_data(item) for item in items]
+    def search_books_randomly_with_pagination(self, max_results: int = 10, pages: int = 5) -> List[Dict]:
+        """Fetch random books using random characters as queries and leverage pagination."""
+        random_query = ''.join(random.choices(string.ascii_lowercase + string.digits, k=3))  # 3-character query
+        all_books = []
+        for start_index in range(0, pages * max_results, max_results):
+            params = {"q": random_query, "maxResults": max_results, "startIndex": start_index, "projection": "full"}
+            response = self._api_request(params)
+            if response:
+                items = response.json().get("items", [])
+                all_books.extend([self._parse_book_data(item) for item in items if item])
+        return all_books
 
     def fetch_book_data(self, isbn: str) -> Optional[Dict]:
         """Fetch detailed book data by ISBN."""
@@ -73,7 +70,7 @@ class GoogleBooksAPI:
         sale_info = item.get("saleInfo", {})
         access_info = item.get("accessInfo", {})
 
-        # Convert author list to list of dicts with name field
+        # Extract authors
         authors = volume_info.get("authors", [])
         author_list = [{"name": author} for author in authors]
 
@@ -81,7 +78,7 @@ class GoogleBooksAPI:
             "title": volume_info.get("title"),
             "subtitle": volume_info.get("subtitle"),
             "description": volume_info.get("description"),
-            "authors": author_list,  # Now returning list of dicts with name field
+            "authors": author_list,
             "publisher": volume_info.get("publisher"),
             "published_year": volume_info.get("publishedDate", "").split("-")[0],
             "isbn_10": next((i["identifier"] for i in volume_info.get("industryIdentifiers", [])
@@ -109,69 +106,3 @@ class GoogleBooksAPI:
             "google_info_link": volume_info.get("infoLink"),
             "google_canonical_link": volume_info.get("canonicalVolumeLink"),
         }
-
-class OpenLibraryAPI:
-    """Handles Open Library API interactions with extended metadata parsing."""
-
-    def __init__(self):
-        self.base_url = "https://openlibrary.org"
-
-    def fetch_by_isbn(self, isbn: str) -> Optional[Dict]:
-        """Fetch book data by ISBN from Open Library."""
-        url = f"{self.base_url}/api/books"
-        params = {"bibkeys": f"ISBN:{isbn}", "format": "json", "jscmd": "data"}
-        response = requests.get(url, params=params)
-        if response.status_code == 200:
-            book_data = response.json().get(f"ISBN:{isbn}")
-            if book_data:
-                return self._parse_book_data(book_data)
-        return None
-
-    def _parse_book_data(self, book_data: Dict) -> Dict:
-        """Parse Open Library book data."""
-        authors = book_data.get("authors", [])
-
-        author_details = [
-            {"name": author.get("name"), "key": author.get("key").split("/")[-1] if author.get("key") else None}
-            for author in authors
-        ]
-
-        preview_url = None
-        if book_data.get("ebooks"):
-            for ebook in book_data["ebooks"]:
-                if ebook.get("preview_url"):
-                    preview_url = ebook["preview_url"]
-                    break
-
-        return {
-            "title": book_data.get("title"),
-            "subtitle": book_data.get("subtitle"),
-            "authors": author_details,
-            "publisher": book_data.get("publishers", [{}])[0].get("name"),
-            "published_year": book_data.get("publish_date", "").split()[-1],
-            "isbn_10": book_data.get("identifiers", {}).get("isbn_10", [None])[0],
-            "isbn_13": book_data.get("identifiers", {}).get("isbn_13", [None])[0],
-            "page_count": book_data.get("number_of_pages"),
-            "subjects": [subject.get("name") for subject in book_data.get("subjects", [])],
-            "ebook_url": preview_url
-        }
-
-
-def fetch_and_merge_data(api_keys: List[str], query: str, num_books: int = 50) -> List[Dict]:
-    """Fetch and merge data from Google Books and OpenLibrary."""
-    google_books_api = GoogleBooksAPI(api_keys)
-    open_library_api = OpenLibraryAPI()
-
-    google_books = google_books_api.search_books(query, max_results=num_books)
-    merged_books = []
-
-    for book in google_books:
-        isbn_13 = book.get("isbn_13")
-        open_library_data = open_library_api.fetch_by_isbn(isbn_13) if isbn_13 else None
-
-        # Merge data
-        merged_data = {**book, **(open_library_data or {})}
-        merged_books.append(merged_data)
-        print(merged_data)
-
-    return merged_books
