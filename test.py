@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import random
@@ -336,7 +337,25 @@ def insert_or_update_book_data(connection, book_data: Dict, openlibrary_api):
     except psycopg2.Error as e:
         print(f"Database operation error: {e}")
 
+def merge_book_data(google_data: Optional[Dict], openlibrary_data: Optional[Dict]) -> Dict:
+    """Merge book data from Google Books and Open Library APIs."""
+    if not google_data and not openlibrary_data:
+        return {}
 
+    # Use Google Books data as the base
+    merged_data = google_data or {}
+
+    # Fill in missing fields with Open Library data
+    if openlibrary_data:
+        merged_data["title"] = merged_data.get("title") or openlibrary_data.get("title")
+        merged_data["authors"] = merged_data.get("authors") or openlibrary_data.get("authors")
+        merged_data["publisher"] = merged_data.get("publisher") or openlibrary_data.get("publisher")
+        merged_data["published_year"] = merged_data.get("published_year") or openlibrary_data.get("published_year")
+        merged_data["isbn_10"] = merged_data.get("isbn_10") or openlibrary_data.get("isbn_10")
+        merged_data["isbn_13"] = merged_data.get("isbn_13") or openlibrary_data.get("isbn_13")
+        merged_data["language_code"] = merged_data.get("language_code") or openlibrary_data.get("language")
+
+    return merged_data
 
 def main():
     connection = connect_to_db()
@@ -355,19 +374,21 @@ def main():
         try:
             isbns = google_api.search_books_randomly()
             for isbn in isbns:
-                book_data = google_api.fetch_book_data(isbn)
-                if not book_data:
-                    book_data = openlibrary_api.fetch_book_data(isbn)  # Fallback
-                if book_data:
-                    insert_or_update_book_data(connection, book_data, openlibrary_api)
+                google_data = google_api.fetch_book_data(isbn)
+                openlibrary_data = openlibrary_api.fetch_book_data(isbn)
+
+                if google_data or openlibrary_data:
+                    # Combine data from both APIs
+                    combined_data = merge_book_data(google_data, openlibrary_data)
+                    # print(json.dumps(combined_data, indent=4, ensure_ascii=False))
+
+                    insert_or_update_book_data(connection, combined_data, openlibrary_api)
                 else:
                     print(f"No data found for ISBN: {isbn}")
         except Exception as e:
             print(f"An error occurred: {e}")
             time.sleep(10)  # Add a longer delay if an error occurs
     connection.close()
-
-
 
 if __name__ == "__main__":
     main()

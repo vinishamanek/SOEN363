@@ -57,7 +57,7 @@ CREATE TABLE Author (
     openlibrary_author_id VARCHAR(50),
     goodreads_author_id VARCHAR(50),
     wikipedia_url URL_TYPE,
-    CONSTRAINT author_dates_check 
+    CONSTRAINT author_dates_check
         CHECK (death_date IS NULL OR birth_date IS NULL OR death_date > birth_date)
 );
 
@@ -69,7 +69,7 @@ CREATE TABLE Book (
     subtitle VARCHAR(500),
     description TEXT,
     language_code CHAR(3),
-    publication_date DATE,
+    publication_date INTEGER,
     publisher_id INTEGER REFERENCES Publisher(publisher_id) ON DELETE SET NULL ON UPDATE CASCADE,
     page_count INTEGER CHECK (page_count > 0),
     average_rating RATING_TYPE DEFAULT 0.0,
@@ -177,7 +177,7 @@ CREATE TABLE PriceHistory (
 -- views
 -- view with all public book details, authors, genres, publisher, etc
 CREATE VIEW PublicBookInfo AS
-SELECT 
+SELECT
     b.title,
     b.subtitle,
     b.publication_date,
@@ -198,7 +198,7 @@ GROUP BY b.book_id, p.publisher_id;
 -- view with all publisher and book details, current price and currency codes, etc
 -- fix as needed
 CREATE VIEW AdminBookInfo AS
-SELECT 
+SELECT
     b.*,
     p.*,
     string_agg(DISTINCT a.first_name || ' ' || a.last_name, '; ') AS authors,

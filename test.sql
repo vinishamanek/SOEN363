@@ -30,10 +30,10 @@ CREATE TYPE format_type AS ENUM ('Hardcover', 'Paperback', 'Ebook');
 CREATE TYPE series_status AS ENUM ('Ongoing', 'Completed');
 CREATE TYPE content_rating AS ENUM ('G', 'PG', 'Teen', 'Mature', 'Adult');
 
-CREATE DOMAIN ISBN_TYPE10 AS VARCHAR(15)
-    CHECK (VALUE ~ '^(?:\d{10}|\d{15})$');
-CREATE DOMAIN ISBN_TYPE13 AS VARCHAR(20)
-    CHECK (VALUE ~ '^(?:\d{10}|\d{20})$');
+-- CREATE DOMAIN ISBN_TYPE10 AS VARCHAR(15)
+--     CHECK (VALUE ~ '^(?:\d{10}|\d{15})$');
+-- CREATE DOMAIN ISBN_TYPE13 AS VARCHAR(20)
+--     CHECK (VALUE ~ '^(?:\d{10}|\d{20})$');
 CREATE DOMAIN RATING_TYPE AS DECIMAL(2,1)
     CHECK (VALUE >= 0.0 AND VALUE <= 5.0);
 CREATE DOMAIN URL_TYPE AS VARCHAR(2048)
@@ -55,6 +55,7 @@ CREATE TABLE Author (
                         author_id SERIAL PRIMARY KEY,
                         first_name VARCHAR(100),
                         last_name VARCHAR(100) NOT NULL,
+                        alternate_names TEXT[],
                         birth_date DATE,
                         death_date DATE,
                         biography TEXT,
@@ -93,6 +94,7 @@ CREATE TABLE Book (
                       publisher_id INTEGER REFERENCES Publisher(publisher_id) ON DELETE SET NULL ON UPDATE CASCADE,
                       page_count INTEGER CHECK (page_count > 0),
                       average_rating RATING_TYPE DEFAULT 0.0,
+                      maturity_rating VARCHAR(50),
                       ratings_count INTEGER DEFAULT 0 CHECK (ratings_count >= 0),
                       content_rating content_rating,
                       openlibrary_work_id VARCHAR(50),
@@ -281,6 +283,3 @@ FROM Book b
          LEFT JOIN PriceHistory ph ON b.book_id = ph.book_id
 WHERE ph.end_date IS NULL -- Filter active prices
 GROUP BY b.book_id, p.publisher_id, ph.price, ph.currency_code;
-
-ALTER TABLE Book ADD COLUMN maturity_rating VARCHAR(50);
-ALTER TABLE Author ADD COLUMN alternate_names TEXT[];
