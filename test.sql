@@ -127,30 +127,30 @@ CREATE TABLE Subject
 
 CREATE TABLE BookSubject
 (
-    book_id    SERIAL REFERENCES Book (book_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    subject_id SERIAL REFERENCES Subject (subject_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    book_id    INTEGER  REFERENCES Book (book_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    subject_id INTEGER  REFERENCES Subject (subject_id) ON DELETE CASCADE ON UPDATE CASCADE,
     PRIMARY KEY (book_id, subject_id)
 );
 -- Book-Genre Relationship
 CREATE TABLE BookCategory
 (
-    book_id     SERIAL REFERENCES Book (book_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    category_id SERIAL REFERENCES Category (category_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    book_id     INTEGER REFERENCES Book (book_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    category_id INTEGER  REFERENCES Category (category_id) ON DELETE CASCADE ON UPDATE CASCADE,
     PRIMARY KEY (book_id, category_id)
 );
 
 -- Book-Author Relationship
 CREATE TABLE BookAuthor
 (
-    book_id   SERIAL REFERENCES Book (book_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    author_id SERIAL REFERENCES Author (author_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    book_id   INTEGER  REFERENCES Book (book_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    author_id INTEGER  REFERENCES Author (author_id) ON DELETE CASCADE ON UPDATE CASCADE,
     PRIMARY KEY (book_id, author_id)
 );
 
 CREATE TABLE BookPublisher
 (
-    book_id      SERIAL REFERENCES Book (book_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    publisher_id SERIAL REFERENCES Publisher (publisher_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    book_id      INTEGER  REFERENCES Book (book_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    publisher_id INTEGER  REFERENCES Publisher (publisher_id) ON DELETE CASCADE ON UPDATE CASCADE,
     PRIMARY KEY (book_id, publisher_id)
 );
 
