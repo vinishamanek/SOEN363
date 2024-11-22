@@ -123,19 +123,9 @@ def insert_subject(cursor, subjects: List[str]) -> List[int]:
         except Exception as e:
             print(f"Error inserting subject {subject}: {e}")
     return subject_ids
- 
+
 def insert_book(cursor, book_data: Dict) -> Optional[int]:
     """Insert book with direct ISBN handling."""
-    isbn10 = book_data.get("isbn_10", "").replace("-", "")  # Remove hyphens
-    isbn13 = book_data.get("isbn_13", "").replace("-", "")  # Remove hyphens
-    
-    # Only keep digits
-    isbn10 = ''.join(filter(str.isdigit, isbn10))
-    isbn13 = ''.join(filter(str.isdigit, isbn13))
-
-    print(f"ISBN10: {isbn10}, ISBN13: {isbn13}")
-        # Pad ISBN10 with leading zeros if needed
-    isbn10 = isbn10.zfill(10) if isbn10 else None
     try:
         cursor.execute("""
             INSERT INTO Book (
@@ -153,8 +143,8 @@ def insert_book(cursor, book_data: Dict) -> Optional[int]:
                 description = EXCLUDED.description
             RETURNING book_id;
         """, (
-            isbn10,
-            isbn13,
+            book_data.get("isbn_10"),
+            book_data.get("isbn_13"),
             book_data.get("title"),
             book_data.get("subtitle"),
             book_data.get("description"),
@@ -276,7 +266,7 @@ def insert_data(connection, books: List[Dict]):
         for book in books:
             try:
                 cursor.execute("BEGIN;")
-                
+
                 book_id = insert_book(cursor, book)
                 if not book_id:
                     cursor.execute("ROLLBACK;")
@@ -291,12 +281,12 @@ def insert_data(connection, books: List[Dict]):
                 link_book_publisher(cursor, book_id, publisher_id)
                 link_book_category(cursor, book_id, category_ids)
                 link_book_subject(cursor, book_id, subject_ids)
-                
+
                 handle_book_format(cursor, book_id, book)
-                
+
                 if book.get("price_info"):
                     insert_price(cursor, book_id, book["price_info"])
-                
+
                 cursor.execute("COMMIT;")
                 print(f"Successfully processed book: {book.get('title')}")
             except Exception as e:

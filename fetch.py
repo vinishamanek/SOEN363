@@ -85,9 +85,9 @@ class GoogleBooksAPI:
             "publisher": volume_info.get("publisher"),
             "published_year": volume_info.get("publishedDate", "").split("-")[0],
             "isbn_10": next((i["identifier"] for i in volume_info.get("industryIdentifiers", [])
-                            if i["type"] == "ISBN_10"), None),
+                             if i["type"] == "ISBN_10"), None),
             "isbn_13": next((i["identifier"] for i in volume_info.get("industryIdentifiers", [])
-                            if i["type"] == "ISBN_13"), None),
+                             if i["type"] == "ISBN_13"), None),
             "page_count": volume_info.get("pageCount"),
             "categories": volume_info.get("categories", []),
             "language_code": volume_info.get("language"),
@@ -140,8 +140,8 @@ class OpenLibraryAPI:
         if book_data.get("ebooks"):
             for ebook in book_data["ebooks"]:
                 if ebook.get("preview_url"):
-                 preview_url = ebook["preview_url"]
-                 break
+                    preview_url = ebook["preview_url"]
+                    break
 
         return {
             "title": book_data.get("title"),
@@ -175,4 +175,3 @@ def fetch_and_merge_data(api_keys: List[str], query: str, num_books: int = 50) -
         print(merged_data)
 
     return merged_books
-

@@ -17,7 +17,7 @@ def main():
     try:
         print("Fetching book data...")
         merged_books = fetch_and_merge_data(api_keys, query="harry potter", num_books=5)
-        
+
         print("\nData to be inserted:")
         for idx, book in enumerate(merged_books, 1):
             print(f"\nBook {idx}:")
@@ -25,7 +25,7 @@ def main():
             print(f"Authors: {book.get('authors')}")
             print(f"ISBN13: {book.get('isbn_13')}")
             print("-" * 50)
-        
+
         if not merged_books:
             print("No books were fetched!")
             return
