@@ -28,7 +28,7 @@ DROP TYPE IF EXISTS content_rating CASCADE;
 
 -- Create domains and custom types
 CREATE TYPE format_type AS ENUM ('Hardcover', 'Paperback', 'Ebook');
-CREATE TYPE content_rating AS ENUM ('G', 'PG', 'Teen', 'Mature', 'Adult');
+CREATE TYPE maturity_rating AS ENUM ('G', 'PG', 'Teen', 'Mature', 'Adult');
 
 -- CREATE DOMAIN ISBN_TYPE10 AS VARCHAR(10)
 --     CHECK (VALUE ~ '^(?:\d{10}|\d{15})$');
@@ -77,8 +77,7 @@ CREATE TABLE Book
     page_count             INTEGER CHECK (page_count > 0),
     rating                 INTEGER REFERENCES Rating (avg_rating) ON DELETE SET NULL ON UPDATE CASCADE,
     book_rating_count      INTEGER REFERENCES Rating (rating_count) ON DELETE SET NULL ON UPDATE CASCADE,
-    maturity_rating        VARCHAR(50),
-    content_rating         content_rating,
+    maturity_rating         maturity_rating,
     book_price_id          INTEGER references Price (price_id) ON DELETE SET NULL ON UPDATE CASCADE,
     openlibrary_work_id    VARCHAR(50),
     openlibrary_edition_id VARCHAR(50),
@@ -159,6 +158,7 @@ CREATE TABLE Price
 (
     price_id                  SERIAL PRIMARY KEY,
     country                   VARCHAR(3),
+    onSaleDate                Date,
     saleability               varchar(20),
     book_id                   INTEGER REFERENCES Book (book_id) ON DELETE CASCADE ON UPDATE CASCADE,
     listPrice                 DECIMAL(10, 2) CHECK (listPrice >= 0),
