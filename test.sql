@@ -30,8 +30,10 @@ CREATE TYPE format_type AS ENUM ('Hardcover', 'Paperback', 'Ebook');
 CREATE TYPE series_status AS ENUM ('Ongoing', 'Completed');
 CREATE TYPE content_rating AS ENUM ('G', 'PG', 'Teen', 'Mature', 'Adult');
 
-CREATE DOMAIN ISBN_TYPE AS VARCHAR(13)
-    CHECK (VALUE ~ '^(?:\d{10}|\d{13})$');
+CREATE DOMAIN ISBN_TYPE10 AS VARCHAR(15)
+    CHECK (VALUE ~ '^(?:\d{10}|\d{15})$');
+CREATE DOMAIN ISBN_TYPE13 AS VARCHAR(20)
+    CHECK (VALUE ~ '^(?:\d{10}|\d{20})$');
 CREATE DOMAIN RATING_TYPE AS DECIMAL(2,1)
     CHECK (VALUE >= 0.0 AND VALUE <= 5.0);
 CREATE DOMAIN URL_TYPE AS VARCHAR(2048)
@@ -60,9 +62,9 @@ CREATE TABLE Author (
                         openlibrary_author_id VARCHAR(50),
                         goodreads_author_id VARCHAR(50),
                         wikipedia_url URL_TYPE,
-                        ratings_breakdown JSONB,
-                        total_works INTEGER,
-                        profile_image URL_TYPE,
+--    ratings_breakdown JSONB, -- Optional, unavailable for now
+--    total_works INTEGER, -- Optional, unavailable for now
+--    profile_image URL_TYPE, -- Optional, unavailable for now
                         CONSTRAINT author_dates_check CHECK (death_date IS NULL OR birth_date IS NULL OR death_date > birth_date),
                         CONSTRAINT unique_author UNIQUE (first_name, last_name)
 );
@@ -81,7 +83,8 @@ CREATE TABLE Series (
 -- Book Table
 CREATE TABLE Book (
                       book_id SERIAL PRIMARY KEY,
-                      isbn ISBN_TYPE NOT NULL UNIQUE,
+                      isbn10 ISBN_TYPE10 NOT NULL UNIQUE,
+                      isbn13 ISBN_TYPE13 NOT NULL UNIQUE,
                       title VARCHAR(500) NOT NULL,
                       subtitle VARCHAR(500),
                       description TEXT,
@@ -98,10 +101,10 @@ CREATE TABLE Book (
                       google_preview_link URL_TYPE,
                       google_info_link URL_TYPE,
                       google_canonical_link URL_TYPE,
-                      text_snippet TEXT,
-                      reading_modes JSONB,
-                      panelization_summary JSONB,
-                      ratings_breakdown JSONB,
+--    text_snippet TEXT, -- Optional, unavailable for now
+--    reading_modes JSONB, -- Optional, unavailable for now
+--    panelization_summary JSONB, -- Optional, unavailable for now
+--    ratings_breakdown JSONB, -- Optional, unavailable for now
                       series_id INTEGER REFERENCES Series(series_id) ON DELETE SET NULL
 );
 
@@ -113,8 +116,8 @@ CREATE TABLE PhysicalBook (
                               width_mm DECIMAL(5,2) CHECK (width_mm > 0),
                               thickness_mm DECIMAL(5,2) CHECK (thickness_mm > 0),
                               format format_type NOT NULL,
-                              printing_house VARCHAR(200),
-                              binding_type VARCHAR(50)
+--    printing_house VARCHAR(200), -- Optional, unavailable for now
+--    binding_type VARCHAR(50) -- Optional, unavailable for now
 );
 
 -- EBook Table
@@ -122,17 +125,17 @@ CREATE TABLE EBook (
                        book_id INTEGER PRIMARY KEY REFERENCES Book(book_id) ON DELETE CASCADE ON UPDATE CASCADE,
                        file_size_bytes BIGINT CHECK (file_size_bytes > 0),
                        drm_protected BOOLEAN DEFAULT true,
-                       supported_devices TEXT[],
-                       download_format VARCHAR(50)[]
+--    supported_devices TEXT[], -- Optional, unavailable for now
+--    download_format VARCHAR(50)[] -- Optional, unavailable for now
 );
 
 -- AudioBook Table
 CREATE TABLE AudioBook (
                            book_id INTEGER PRIMARY KEY REFERENCES Book(book_id) ON DELETE CASCADE ON UPDATE CASCADE,
                            duration_seconds INTEGER CHECK (duration_seconds > 0),
-                           narrator VARCHAR(200),
-                           audio_format VARCHAR(50)[],
-                           sample_rate INTEGER
+--    narrator VARCHAR(200), -- Optional, unavailable for now
+--    audio_format VARCHAR(50)[], -- Optional, unavailable for now
+--    sample_rate INTEGER -- Optional, unavailable for now
 );
 
 -- Contributor Table
@@ -194,7 +197,7 @@ CREATE TABLE PriceHistory (
                               price DECIMAL(10,2) CHECK (price >= 0),
                               currency_code CHAR(3),
                               effective_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                              end_date TIMESTAMP,
+                              end_date TIMESTAMP, -- Optional, uncommented for use in views
                               source VARCHAR(50),
                               CONSTRAINT price_dates_check CHECK (end_date IS NULL OR end_date > effective_date)
 );
@@ -203,21 +206,11 @@ CREATE TABLE PriceHistory (
 CREATE TABLE Reviews (
                          review_id SERIAL PRIMARY KEY,
                          book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
-                         user_id INTEGER,
+--    user_id INTEGER, -- Optional, unavailable for now
                          rating DECIMAL(2,1) CHECK (rating >= 0 AND rating <= 5),
                          text TEXT,
                          spoiler BOOLEAN DEFAULT FALSE,
-                         review_date DATE
-);
-
--- User Interactions Table
-CREATE TABLE UserInteractions (
-                                  interaction_id SERIAL PRIMARY KEY,
-                                  user_id INTEGER,
-                                  book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
-                                  action_type VARCHAR(50), -- e.g., "rating", "shelving"
-                                  action_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                  details JSONB
+--    review_date DATE -- Optional, unavailable for now
 );
 
 -- Digital Content Table
@@ -226,8 +219,8 @@ CREATE TABLE DigitalContent (
                                 book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
                                 source VARCHAR(100), -- e.g., "Project Gutenberg"
                                 content_url URL_TYPE,
-                                format VARCHAR(50),
-                                file_size INTEGER
+--    format VARCHAR(50), -- Optional, unavailable for now
+--    file_size INTEGER -- Optional, unavailable for now
 );
 
 -- Public Book Info View
@@ -254,7 +247,8 @@ GROUP BY b.book_id, p.publisher_id;
 CREATE VIEW AdminBookInfo AS
 SELECT
     b.book_id,
-    b.isbn,
+    b.isbn10,
+    b.isbn13,
     b.title,
     b.subtitle,
     b.description AS book_description,
@@ -285,5 +279,8 @@ FROM Book b
          LEFT JOIN BookGenre bg ON b.book_id = bg.book_id
          LEFT JOIN Genre g ON bg.genre_id = g.genre_id
          LEFT JOIN PriceHistory ph ON b.book_id = ph.book_id
-WHERE ph.end_date IS NULL
+WHERE ph.end_date IS NULL -- Filter active prices
 GROUP BY b.book_id, p.publisher_id, ph.price, ph.currency_code;
+
+ALTER TABLE Book ADD COLUMN maturity_rating VARCHAR(50);
+ALTER TABLE Author ADD COLUMN alternate_names TEXT[];

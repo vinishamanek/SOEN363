@@ -30,14 +30,45 @@ def connect_to_db():
 
 
 class GoogleBooksAPI:
-    def __init__(self, api_key: str):
+    """Handles Google Books API interactions."""
+
+    def __init__(self, api_keys: List[str]):
         self.base_url = "https://www.googleapis.com/books/v1/volumes"
-        self.api_key = api_key
+        self.api_keys = api_keys
+        self.current_key_index = 0
+
+    def rotate_api_key(self):
+        """Rotate to the next API key."""
+        self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+        print(f"Switching to API key index {self.current_key_index}")
+
+    def get_current_api_key(self) -> str:
+        """Retrieve the current API key."""
+        return self.api_keys[self.current_key_index]
+
+    def _api_request(self, params: Dict) -> Optional[requests.Response]:
+        """Handle API requests with retries and key rotation."""
+        retries, delay = 5, 1  # Increase retries to handle multiple keys
+        for attempt in range(retries):
+            params["key"] = self.get_current_api_key()
+            try:
+                response = requests.get(self.base_url, params=params)
+                if response.status_code == 200:
+                    return response
+                elif response.status_code == 429:  # Too many requests
+                    print(f"Rate limit reached for key {self.current_key_index}. Retrying...")
+                    self.rotate_api_key()  # Switch to the next key
+                    time.sleep(delay)
+                    delay *= 2  # Exponential backoff
+            except requests.RequestException as e:
+                print(f"Request error: {e}")
+        print("All keys exhausted or maximum retries reached. Skipping this request.")
+        return None
 
     def search_books_randomly(self, max_results: int = 40) -> List[str]:
         """Fetch random books using random characters as queries."""
         random_query = random.choice(string.ascii_lowercase + string.digits)
-        params = {"q": random_query, "maxResults": max_results, "key": self.api_key}
+        params = {"q": random_query, "maxResults": max_results}
         response = self._api_request(params)
         if not response:
             return []
@@ -45,11 +76,12 @@ class GoogleBooksAPI:
 
     def fetch_book_data(self, isbn: str) -> Optional[Dict]:
         """Fetch book data by ISBN."""
-        params = {"q": f"isbn:{isbn}", "key": self.api_key}
+        params = {"q": f"isbn:{isbn}"}
         response = self._api_request(params)
         if not response:
             return None
         return self._parse_book_data(response.json())
+
 
     def _extract_isbns(self, data: Dict) -> List[str]:
         """Extract ISBNs from Google Books API response."""
@@ -66,6 +98,7 @@ class GoogleBooksAPI:
             return None
         volume_info = data["items"][0].get("volumeInfo", {})
         sale_info = data["items"][0].get("saleInfo", {})
+        dimensions = volume_info.get("dimensions", {})
 
         published_date = volume_info.get("publishedDate", "")
         publication_year = published_date[:4] if published_date.isdigit() else None
@@ -89,6 +122,8 @@ class GoogleBooksAPI:
             "google_info_link": volume_info.get("infoLink"),
             "google_canonical_link": volume_info.get("canonicalVolumeLink"),
             "physical_format": "Hardcover" if sale_info.get("isEbook", False) else "Paperback",
+            "dimensions": dimensions,
+            "sale_info": sale_info,
         }
 
     def _get_isbn(self, volume_info: Dict, isbn_type: str) -> Optional[str]:
@@ -115,60 +150,192 @@ class GoogleBooksAPI:
         return None
 
 
-class PublisherDataCollector:
-    def __init__(self):
-        self.api_url = "https://openlibrary.org/search.json"
+class OpenLibraryAPI:
+    """Handles Open Library API interactions."""
 
-    def fetch_publisher(self, publisher_name: str) -> Optional[Dict]:
-        """Fetch publisher details from Open Library."""
-        if not publisher_name:
-            return None
+    def __init__(self):
+        self.base_url = "https://openlibrary.org"
+
+    def fetch_book_data(self, isbn: str) -> Optional[Dict]:
+        """Fetch book data by ISBN from Open Library."""
+        url = f"{self.base_url}/search.json"
+        params = {"q": f"isbn:{isbn}"}
         try:
-            response = requests.get(f"{self.api_url}?publisher={publisher_name}")
+            response = requests.get(url, params=params)
             if response.status_code == 200:
-                docs = response.json().get("docs", [])
-                if docs:
-                    return {
-                        "name": publisher_name,
-                        "description": docs[0].get("text", [None])[0],
-                    }
+                data = response.json()
+                if data["docs"]:
+                    return self._parse_book_data(data["docs"][0])
         except requests.RequestException as e:
-            print(f"Error fetching publisher data: {e}")
+            print(f"Open Library API request failed: {e}")
         return None
 
+    def _parse_book_data(self, book_data: dict):
+        """Parse book data from Open Library API response."""
+        return {
+            "title": book_data.get("title"),
+            "authors": book_data.get("author_name", []),
+            "publisher": book_data.get("publisher", ["Unknown Publisher"])[0],
+            "published_year": book_data.get("first_publish_year"),
+            "isbn_10": book_data.get("isbn", [None])[0],
+            "isbn_13": book_data.get("isbn", [None])[1] if len(book_data.get("isbn", [])) > 1 else None,
+            "language": book_data.get("language", ["en"])[0],
+        }
 
-def insert_or_update_book_data(connection, book_data: Dict, publisher_collector: PublisherDataCollector):
-    """Insert or update book and publisher data in the database."""
-    if not book_data.get("isbn_13"):
-        print("Skipping book due to missing ISBN.")
-        return
+    def fetch_author_data(self, author_name: str) -> Optional[Dict]:
+        """Fetch author data from Open Library."""
+        url = f"{self.base_url}/search/authors.json?q={author_name}"
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("docs"):
+                    return self._parse_author_data(data["docs"][0])
+        except requests.RequestException as e:
+            print(f"Error fetching author data for {author_name}: {e}")
+        return None
 
-    publisher_data = publisher_collector.fetch_publisher(book_data["publisher"])
+    def _parse_author_data(self, data: Dict) -> Dict:
+        """Parse author data from Open Library API response."""
+        return {
+            "first_name": data.get("name", "").split(" ")[0],
+            "last_name": " ".join(data.get("name", "").split(" ")[1:]),
+            "birth_date": data.get("birth_date"),
+            "bio": data.get("bio"),
+            "wikipedia": data.get("wikipedia"),
+            "remote_ids": data.get("remote_ids", {}),
+            "alternate_names": data.get("alternate_names", [])
+        }
+
+
+def insert_or_update_book_data(connection, book_data: Dict, openlibrary_api):
+    """Insert or update book and author data in the database."""
     try:
+        # Ensure the book has a valid ISBN
+        if not book_data.get("isbn_13") and not book_data.get("isbn_10"):
+            print(f"Skipping book due to missing ISBN: {book_data.get('title')}")
+            return
+
         with connection.cursor() as cursor:
+            # Insert or update publisher information
             publisher_id = None
-            if publisher_data:
+            if book_data.get("publisher"):
                 cursor.execute("""
-                    INSERT INTO Publisher (name, description)
-                    VALUES (%s, %s)
+                    INSERT INTO Publisher (name)
+                    VALUES (%s)
                     ON CONFLICT (name) DO NOTHING
                     RETURNING publisher_id
-                """, (publisher_data["name"], publisher_data["description"]))
-                publisher_id = cursor.fetchone()
+                """, (book_data["publisher"],))
+                result = cursor.fetchone()
+                publisher_id = result[0] if result else None
 
+            # Insert or update book information
             cursor.execute("""
-                INSERT INTO Book (isbn, title, description, publication_year, 
-                                  publisher_id, page_count, average_rating, ratings_count, google_books_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (isbn) DO NOTHING
+                INSERT INTO Book (
+                    isbn10, isbn13, title, description, language_code, publication_year,
+                    publisher_id, page_count, average_rating, ratings_count, maturity_rating,
+                    google_books_id, google_preview_link, google_info_link, google_canonical_link
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (isbn13) DO NOTHING
             """, (
-                book_data["isbn_13"], book_data["title"], book_data["description"],
-                book_data["published_year"], publisher_id, book_data["page_count"],
-                book_data["average_rating"], book_data["ratings_count"], book_data["google_books_id"]
+                book_data.get("isbn_10"), book_data.get("isbn_13"), book_data.get("title"),
+                book_data.get("description"), book_data.get("language_code", "en"),
+                book_data.get("published_year"), publisher_id, book_data.get("page_count"),
+                book_data.get("average_rating"), book_data.get("ratings_count"),
+                book_data.get("maturity_rating"), book_data.get("google_books_id"),
+                book_data.get("google_preview_link"), book_data.get("google_info_link"),
+                book_data.get("google_canonical_link")
             ))
-            print(f"Book processed: {book_data['title']}")
+
+            # Insert author data
+            authors = book_data.get("authors", [])
+            for author_name in authors:
+                # Attempt to fetch detailed author data using Open Library
+                author_data = openlibrary_api.fetch_author_data(author_name)
+                if author_data:
+                    cursor.execute("""
+                        INSERT INTO Author (
+                            first_name, last_name, birth_date, biography, website, wikipedia_url,
+                            goodreads_author_id, alternate_names
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (first_name, last_name) DO NOTHING
+                    """, (
+                        author_data.get("first_name"), author_data.get("last_name"),
+                        author_data.get("birth_date"), author_data.get("bio"),
+                        author_data.get("website"), author_data.get("wikipedia"),
+                        author_data.get("remote_ids", {}).get("goodreads"),
+                        author_data.get("alternate_names")
+                    ))
+
+                    # Link the author to the book
+                    cursor.execute("""
+                        INSERT INTO BookAuthor (book_id, author_id, role)
+                        VALUES (
+                            (SELECT book_id FROM Book WHERE isbn13 = %s),
+                            (SELECT author_id FROM Author WHERE first_name = %s AND last_name = %s),
+                            'Author'
+                        )
+                    """, (
+                        book_data.get("isbn_13"),
+                        author_data.get("first_name"),
+                        author_data.get("last_name")
+                    ))
+
+            # Insert genres/categories
+            categories = book_data.get("categories", [])
+            for category in categories:
+                cursor.execute("""
+                    INSERT INTO Genre (name)
+                    VALUES (%s)
+                    ON CONFLICT (name) DO NOTHING
+                """, (category,))
+                cursor.execute("""
+                    INSERT INTO BookGenre (book_id, genre_id)
+                    VALUES (
+                        (SELECT book_id FROM Book WHERE isbn13 = %s),
+                        (SELECT genre_id FROM Genre WHERE name = %s)
+                    )
+                    ON CONFLICT DO NOTHING
+                """, (book_data.get("isbn_13"), category))
+
+            # Insert physical book information if dimensions are provided
+            dimensions = book_data.get("dimensions", {})
+            if dimensions:
+                cursor.execute("""
+                    INSERT INTO PhysicalBook (
+                        book_id, height_mm, width_mm, thickness_mm, format
+                    )
+                    VALUES (
+                        (SELECT book_id FROM Book WHERE isbn13 = %s),
+                        %s, %s, %s, %s
+                    )
+                """, (
+                    book_data.get("isbn_13"), dimensions.get("height"), dimensions.get("width"),
+                    dimensions.get("thickness"), book_data.get("physical_format", "Paperback")
+                ))
+
+            # Insert price history if sale information is provided
+            sale_info = book_data.get("sale_info", {})
+            list_price = sale_info.get("list_price", {})
+            if list_price:
+                cursor.execute("""
+                    INSERT INTO PriceHistory (
+                        book_id, price, currency_code, effective_date, source
+                    )
+                    VALUES (
+                        (SELECT book_id FROM Book WHERE isbn13 = %s),
+                        %s, %s, NOW(), 'Google Books'
+                    )
+                """, (
+                    book_data.get("isbn_13"), list_price.get("amount"), list_price.get("currencyCode")
+                ))
+
+            print(f"Processed book: {book_data['title']}")
     except psycopg2.Error as e:
         print(f"Database operation error: {e}")
+
 
 
 def main():
@@ -176,16 +343,30 @@ def main():
     if not connection:
         return
 
-    google_api = GoogleBooksAPI(api_key=os.getenv("GOOGLE_API_KEY"))
-    publisher_collector = PublisherDataCollector()
+    api_keys = [
+        os.getenv("GOOGLE_API_KEY_1"),
+        os.getenv("GOOGLE_API_KEY_2"),
+        os.getenv("GOOGLE_API_KEY_3"),
+    ]  # Add as many keys as you have
+    google_api = GoogleBooksAPI(api_keys=api_keys)
+    openlibrary_api = OpenLibraryAPI()
 
     for _ in range(50):  # Adjust as needed
-        isbns = google_api.search_books_randomly()
-        for isbn in isbns:
-            book_data = google_api.fetch_book_data(isbn)
-            if book_data:
-                insert_or_update_book_data(connection, book_data, publisher_collector)
+        try:
+            isbns = google_api.search_books_randomly()
+            for isbn in isbns:
+                book_data = google_api.fetch_book_data(isbn)
+                if not book_data:
+                    book_data = openlibrary_api.fetch_book_data(isbn)  # Fallback
+                if book_data:
+                    insert_or_update_book_data(connection, book_data, openlibrary_api)
+                else:
+                    print(f"No data found for ISBN: {isbn}")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            time.sleep(10)  # Add a longer delay if an error occurs
     connection.close()
+
 
 
 if __name__ == "__main__":
