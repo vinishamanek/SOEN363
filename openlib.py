@@ -7,6 +7,7 @@ class OpenLibraryDataCollector:
         self.book_api_url = f"{self.base_url}/api/books"
         self.search_api_url = f"{self.base_url}/search.json"
         self.author_api_url = f"{self.base_url}/authors"
+        print("Initialized OpenLibraryDataCollector")
 
     def fetch_by_isbn(self, isbn: str) -> Dict:
         params = {
@@ -26,6 +27,7 @@ class OpenLibraryDataCollector:
             print(f"No data found for ISBN: {isbn}")
             return {}
 
+        print(f"Fetched book data: {book_data}")
         authors_raw = book_data.get('authors', [])
         author_details = []
         
@@ -36,6 +38,7 @@ class OpenLibraryDataCollector:
             
             author_info = {"name": author_name}
             if author_id:
+                print(f"Fetching details for author: {author_name}")
                 additional_info = self.fetch_author_details(author_id)
                 if additional_info:
                     author_info.update(additional_info)
@@ -55,14 +58,17 @@ class OpenLibraryDataCollector:
             "url": book_data.get('url')
         }
 
+        print(f"Formatted data for ISBN: {isbn}: {formatted_data}")
         return formatted_data
 
     def fetch_author_details(self, author_id: str) -> Dict:
         url = f"{self.author_api_url}/{author_id}.json"
+        print(f"Fetching author details from URL: {url}")
         try:
             response = requests.get(url)
             if response.status_code == 200:
                 data = response.json()
+                print(f"Fetched author details: {data}")
                 return {
                     "birth_date": data.get("birth_date"),
                     "death_date": data.get("death_date"),

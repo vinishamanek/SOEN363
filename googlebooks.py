@@ -28,6 +28,8 @@ class GoogleBooksDataCollector:
             print(f"Error: {response.status_code}, {response.text}")
             return []
 
+        print("Fetched raw data:", response.json())
+
         books_data = []
         data = response.json()
         
@@ -42,6 +44,12 @@ class GoogleBooksDataCollector:
                 for identifier in volume_info.get('industryIdentifiers', [])
             }
 
+            print("Volume Info:", volume_info)
+            print("Sales Info:", sales_info)
+            print("Access Info:", access_info)
+            print("Search Info:", search_info)
+            print("Identifiers:", identifiers)
+
             author_details = [{
                 "full_name": author,
                 "first_name": author.split()[0] if author else None,
@@ -52,6 +60,8 @@ class GoogleBooksDataCollector:
                 "biography": None,
                 "other_works": []
             } for author in volume_info.get('authors', [])]
+
+            print("Author Details:", author_details)
 
             book_data = {
                 "google_books_id": item.get('id'),
@@ -123,6 +133,7 @@ class GoogleBooksDataCollector:
                 "reviews": volume_info.get('reviews', []),
                 "related_books": volume_info.get('relatedBooks', [])
             }
+            print("Book Data:", book_data)
             books_data.append(book_data)
         return books_data
 
