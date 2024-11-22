@@ -2,7 +2,7 @@ import os
 import random
 import string
 import time
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import requests
 from dotenv import load_dotenv
 
@@ -73,33 +73,35 @@ class GoogleBooksAPI:
         sale_info = item.get("saleInfo", {})
         access_info = item.get("accessInfo", {})
 
+        # Convert author list to list of dicts with name field
+        authors = volume_info.get("authors", [])
+        author_list = [{"name": author} for author in authors]
+
         return {
             "title": volume_info.get("title"),
             "subtitle": volume_info.get("subtitle"),
             "description": volume_info.get("description"),
-            "authors": volume_info.get("authors", []),
+            "authors": author_list,  # Now returning list of dicts with name field
             "publisher": volume_info.get("publisher"),
             "published_year": volume_info.get("publishedDate", "").split("-")[0],
             "isbn_10": next((i["identifier"] for i in volume_info.get("industryIdentifiers", [])
-                             if i["type"] == "ISBN_10"), None),
+                            if i["type"] == "ISBN_10"), None),
             "isbn_13": next((i["identifier"] for i in volume_info.get("industryIdentifiers", [])
-                             if i["type"] == "ISBN_13"), None),
+                            if i["type"] == "ISBN_13"), None),
             "page_count": volume_info.get("pageCount"),
             "categories": volume_info.get("categories", []),
             "language_code": volume_info.get("language"),
             "maturity_rating": volume_info.get("maturityRating"),
             "average_rating": volume_info.get("averageRating"),
             "ratings_count": volume_info.get("ratingsCount"),
-            "physical_format": "Hardcover" if sale_info.get("isEbook", False) else "Paperback",
+            "physical_format": "Hardcover" if not sale_info.get("isEbook", False) else "Paperback",
             "price_info": {
-
                 "listPrice": sale_info.get("listPrice", {}).get("amount"),
                 "retailPrice": sale_info.get("retailPrice", {}).get("amount"),
                 "currency": sale_info.get("listPrice", {}).get("currencyCode"),
                 "saleability": sale_info.get("saleability"),
                 "buyLink": sale_info.get("buyLink"),
                 "onSaleDate": sale_info.get("onSaleDate"),
-
             },
             "isEbook": sale_info.get("isEbook"),
             "google_books_id": item.get("id"),
@@ -107,7 +109,6 @@ class GoogleBooksAPI:
             "google_info_link": volume_info.get("infoLink"),
             "google_canonical_link": volume_info.get("canonicalVolumeLink"),
         }
-
 
 class OpenLibraryAPI:
     """Handles Open Library API interactions with extended metadata parsing."""
