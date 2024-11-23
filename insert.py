@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def connect_to_db():
     """Establish a connection to the PostgreSQL database."""
     try:
@@ -126,26 +127,25 @@ def insert_subject(cursor, subjects: List[str]) -> List[int]:
 
 
 def insert_book(cursor, book_data: Dict) -> Optional[int]:
-    """
-    Insert or update a book with rating attributes directly in the Book table.
-    """
+    """Insert or update a book with rating attributes directly in the Book table."""
     try:
+        # Log book_data for debugging
+        print(f"Inserting book: {book_data}")
+
+        # Execute SQL query
         cursor.execute("""
             INSERT INTO Book (
                 isbn10, isbn13, title, subtitle, description,
                 language_code, publication_year, page_count,
-                maturity_rating, avg_rating, ratings_count,
-                google_books_id, google_preview_link,
+                maturity_rating, google_books_id, google_preview_link,
                 google_info_link, google_canonical_link
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (isbn13) WHERE isbn13 IS NOT NULL DO
             UPDATE SET 
                 title = EXCLUDED.title,
                 subtitle = EXCLUDED.subtitle,
-                description = EXCLUDED.description,
-                avg_rating = COALESCE(EXCLUDED.avg_rating, Book.avg_rating),
-                ratings_count = COALESCE(EXCLUDED.ratings_count, Book.ratings_count)
+                description = EXCLUDED.description
             RETURNING book_id;
         """, (
             book_data.get("isbn_10"),
@@ -157,17 +157,32 @@ def insert_book(cursor, book_data: Dict) -> Optional[int]:
             format_year(book_data.get("published_year")),
             book_data.get("page_count"),
             map_maturity_rating(book_data.get("maturity_rating")),
-            book_data.get("average_rating"),  # avg_rating directly in Book
-            book_data.get("ratings_count"),  # ratings_count directly in Book
             book_data.get("google_books_id"),
             book_data.get("google_preview_link"),
             book_data.get("google_info_link"),
-            book_data.get("google_canonical_link")
+            book_data.get("google_canonical_link"),
         ))
+
+        # Return the generated book ID
         return cursor.fetchone()[0]
+
     except Exception as e:
         print(f"Error inserting book {book_data.get('title')}: {e}")
         return None
+
+
+def insert_rating(cursor, book_id: int, avg_rating: float, ratings_count: int) -> None:
+    """Insert or update a rating in the Ratings table."""
+    try:
+        cursor.execute("""
+            INSERT INTO Ratings (book_id, avg_rating, ratings_count)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (book_id) DO UPDATE 
+            SET avg_rating = EXCLUDED.avg_rating,
+                ratings_count = EXCLUDED.ratings_count;
+        """, (book_id, avg_rating, ratings_count))
+    except Exception as e:
+        print(f"Error inserting rating for book {book_id}: {e}")
 
 
 def insert_price(cursor, book_id: int, price_data: Dict) -> Optional[int]:
@@ -210,7 +225,7 @@ def handle_book_format(cursor, book_id: int, book_data: Dict):
         if book_data.get("isEbook"):
             ebook_url = book_data.get("ebook_url")
             if not ebook_url:
-                ebook_url = "https://example.com/default-ebook-url"  # Fallback URL or consider skipping
+                ebook_url = "https://example.com/default-ebook-url"
             cursor.execute("""
                 INSERT INTO EBook (book_id, ebook_url)
                 VALUES (%s, %s)
@@ -232,27 +247,21 @@ def handle_book_format(cursor, book_id: int, book_data: Dict):
 
 
 def insert_data(connection, books: List[Dict]):
-    """
-    Insert all book-related data into the database with ratings as part of Book.
-    """
+    """Insert all book-related data into the database."""
     with connection.cursor() as cursor:
         for book in books:
             try:
                 cursor.execute("BEGIN;")
-
-                # Insert book and get book ID
                 book_id = insert_book(cursor, book)
                 if not book_id:
                     cursor.execute("ROLLBACK;")
                     continue
 
-                # Insert related data
                 author_ids = insert_author(cursor, book.get("authors", []))
                 publisher_id = insert_publisher(cursor, book.get("publisher"))
                 category_ids = insert_category(cursor, book.get("categories", []))
                 subject_ids = insert_subject(cursor, book.get("subjects", []))
 
-                # Link related data
                 for author_id in author_ids:
                     cursor.execute("""
                         INSERT INTO BookAuthor (book_id, author_id)
@@ -278,12 +287,18 @@ def insert_data(connection, books: List[Dict]):
                         ON CONFLICT DO NOTHING;
                     """, (book_id, subject_id))
 
-                # Handle book formats (eBook or physical book)
                 handle_book_format(cursor, book_id, book)
 
-                # Insert price if available
                 if book.get("price_info"):
                     insert_price(cursor, book_id, book["price_info"])
+
+                if book.get("average_rating") is not None:
+                    insert_rating(
+                        cursor,
+                        book_id,
+                        book.get("average_rating", 0.0),
+                        book.get("ratings_count", 0)
+                    )
 
                 cursor.execute("COMMIT;")
                 print(f"Successfully processed book: {book.get('title')}")

@@ -65,7 +65,6 @@ class GoogleBooksAPI:
         """Parse book data to extract required fields."""
         if not item:
             return None
-
         volume_info = item.get("volumeInfo", {})
         sale_info = item.get("saleInfo", {})
         access_info = item.get("accessInfo", {})
@@ -73,7 +72,8 @@ class GoogleBooksAPI:
         # Extract authors
         authors = volume_info.get("authors", [])
         author_list = [{"name": author} for author in authors]
-        print(volume_info.get("ratingsCount"))
+        print(next((i["identifier"] for i in volume_info.get("industryIdentifiers", [])
+                    if i["type"] == "ISBN_13"), None))
         return {
             "title": volume_info.get("title"),
             "subtitle": volume_info.get("subtitle"),
