@@ -203,11 +203,6 @@ WHERE NOT EXISTS (
     WHERE bc.book_id = b.book_id
 );
 
-
-
-
-
-
 -- 8. a view with hard-coded criteria
 
 CREATE OR REPLACE VIEW books_after_2020 AS
@@ -231,17 +226,17 @@ SELECT * FROM books_after_2020;
 
 -- 9. a few examples of constraints: overlap and covering constraints
 
--- Query 1: Check for Overlap Constraint Violation 
--- This query finds books that violate the mutually exclusive constraint
--- by appearing in both PhysicalBook and EBook tables
+-- overlap constraint:
+-- finds books that violate mutual exclusion by appearing in both PhysicalBook and EBook tables
+-- (in our case currently, nothing should be returned since there is mutual exclusion)
 SELECT b.book_id, b.title, p.format AS physical_format, e.ebook_url
 FROM Book b
 JOIN PhysicalBook p ON b.book_id = p.book_id
 JOIN EBook e ON b.book_id = e.book_id;
 
--- Query 2: Check for Covering Constraint Violation
--- This query finds books that violate the covering constraint
--- by not appearing in either PhysicalBook or EBook tables
+-- covering constraint:
+-- finds books that violate covering constraint by not appearing in either PhysicalBook or EBook tables
+-- (in our case currently, nothing should be returned since there is complete coverage)
 SELECT b.book_id, b.title
 FROM Book b
 WHERE b.book_id NOT IN (
@@ -249,30 +244,6 @@ WHERE b.book_id NOT IN (
     UNION
     SELECT book_id FROM EBook
 );
-
-
--- Find books that appear in related categories and subjects overlap?? idk if valid
-SELECT b.book_id, b.title,
-       STRING_AGG(DISTINCT c.name, ', ') as categories,
-       STRING_AGG(DISTINCT s.name, ', ') as subjects
-FROM Book b
-JOIN BookCategory bc ON b.book_id = bc.book_id
-JOIN Category c ON bc.category_id = c.category_id
-JOIN BookSubject bs ON b.book_id = bs.book_id
-JOIN Subject s ON bs.subject_id = s.subject_id
-GROUP BY b.book_id, b.title
-HAVING COUNT(DISTINCT c.category_id) > 0 
-AND COUNT(DISTINCT s.subject_id) > 0;
-
--- Query 2: Check for Books without Publishers (Covering)
--- Shows books that don't have any publisher assigned,
--- which might be missing important information
-SELECT b.book_id, b.title, bp.publisher_id
-FROM Book b
-LEFT JOIN BookPublisher bp ON b.book_id = bp.book_id
-WHERE bp.publisher_id IS NULL;
-
-
 
 
 -- 10. a few examples of division queries using NOT IN and NOT EXISTS-- First, let's verify what subjects exist for reference
