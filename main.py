@@ -26,7 +26,7 @@ def main():
     try:
         while True:  # Infinite loop to continuously fetch books
             print("Fetching random books with pagination...")
-            books = google_books_api.search_books_randomly_with_pagination(max_results=1, pages=1)  
+            books = google_books_api.search_books_randomly_with_pagination(max_results=10, pages=1)  
 
             enriched_books = []
             for book in books:

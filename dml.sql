@@ -154,42 +154,24 @@ WHERE EXISTS (SELECT 1 FROM BookCategory bc WHERE bc.book_id = b.book_id
 -- union
 -- equivalent to union
 -- UNION Example: Find books that are either physical books OR have high ratings (> 4.0)
-SELECT 
-    b.book_id,
-    b.title,
-    b.publication_year,
-    p.format as physical_format,
-    NULL as rating,
-    'Physical Book' as source
+SELECT b.book_id, b.title, b.publication_year, p.format as physical_format, NULL as rating, 'Physical Book' as source
 FROM Book b
 JOIN PhysicalBook p ON b.book_id = p.book_id
 UNION
-SELECT 
-    b.book_id,
-    b.title,
-    b.publication_year,
-    NULL as physical_format,
-    r.avg_rating as rating,
-    'Highly Rated' as source
+SELECT b.book_id, b.title, b.publication_year, NULL as physical_format, r.avg_rating as rating, 'Highly Rated' as source
 FROM Book b
 JOIN Ratings r ON b.book_id = r.book_id
 WHERE r.avg_rating > 4.0;
 
 -- Equivalent without UNION (using OR conditions and CASE expressions)
-SELECT 
-    b.book_id,
-    b.title,
-    b.publication_year,
-    CASE 
-        WHEN pb.format IS NOT NULL THEN pb.format
+SELECT b.book_id, b.title, b.publication_year,
+    CASE WHEN pb.format IS NOT NULL THEN pb.format
         ELSE NULL
     END as physical_format,
-    CASE 
-        WHEN r.avg_rating > 4.0 THEN r.avg_rating
+    CASE WHEN r.avg_rating > 4.0 THEN r.avg_rating
         ELSE NULL
     END as rating,
-    CASE 
-        WHEN pb.format IS NOT NULL THEN 'Physical Book'
+    CASE WHEN pb.format IS NOT NULL THEN 'Physical Book'
         ELSE 'Highly Rated'
     END as source
 FROM Book b
@@ -226,9 +208,24 @@ WHERE NOT EXISTS (
 
 
 
-
 -- 8. a view with hard-coded criteria
 
+CREATE OR REPLACE VIEW books_after_2020 AS
+SELECT 
+    b.book_id,
+    b.title,
+    b.publication_year,
+    string_agg(DISTINCT a.name, '; ') AS authors
+FROM 
+    Book b
+    LEFT JOIN BookAuthor ba ON b.book_id = ba.book_id
+    LEFT JOIN Author a ON ba.author_id = a.author_id
+WHERE 
+    b.publication_year > 2020  -- hard-coded criteria
+GROUP BY 
+    b.book_id;
+
+SELECT * FROM books_after_2020;
 
 
 

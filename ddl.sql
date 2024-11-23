@@ -216,8 +216,8 @@ GROUP BY
 CREATE OR REPLACE FUNCTION validate_price()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.list_price > NEW.retail_price THEN
-        RAISE EXCEPTION 'List price (%s) cannot be higher than retail price (%s)', NEW.list_price, NEW.retail_price;
+    IF NEW.retail_price > NEW.list_price THEN
+        RAISE EXCEPTION 'Retail price (%s) cannot be higher than list price (%s)', NEW.retail_price, NEW.list_price;
     END IF;
 RETURN NEW;
 END;
