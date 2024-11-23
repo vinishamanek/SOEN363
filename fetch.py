@@ -73,7 +73,7 @@ class GoogleBooksAPI:
         # Extract authors
         authors = volume_info.get("authors", [])
         author_list = [{"name": author} for author in authors]
-
+        print(volume_info.get("ratingsCount"))
         return {
             "title": volume_info.get("title"),
             "subtitle": volume_info.get("subtitle"),
@@ -105,4 +105,48 @@ class GoogleBooksAPI:
             "google_preview_link": volume_info.get("previewLink"),
             "google_info_link": volume_info.get("infoLink"),
             "google_canonical_link": volume_info.get("canonicalVolumeLink"),
+        }
+
+class OpenLibraryAPI:
+    """Handles Open Library API interactions with extended metadata parsing."""
+
+    def __init__(self):
+        self.base_url = "https://openlibrary.org"
+
+    def fetch_by_isbn(self, isbn: str) -> Optional[Dict]:
+        """Fetch book data by ISBN from Open Library."""
+        url = f"{self.base_url}/api/books"
+        params = {"bibkeys": f"ISBN:{isbn}", "format": "json", "jscmd": "data"}
+        response = requests.get(url, params=params)
+        if response.status_code == 200:
+            book_data = response.json().get(f"ISBN:{isbn}")
+            if book_data:
+                return self._parse_book_data(book_data)
+        return None
+
+    def _parse_book_data(self, book_data: Dict) -> Dict:
+        """Parse Open Library book data."""
+        authors = book_data.get("authors", [])
+
+        author_details = [
+            {"name": author.get("name"), "key": author.get("key").split("/")[-1] if author.get("key") else None}
+            for author in authors
+        ]
+
+        preview_url = None
+        if book_data.get("ebooks"):
+            for ebook in book_data["ebooks"]:
+                if ebook.get("preview_url"):
+                    preview_url = ebook["preview_url"]
+                    break
+
+        return {
+            "title": book_data.get("title"),
+            "subtitle": book_data.get("subtitle"),
+            "authors": author_details,
+            "publisher": book_data.get("publishers", [{}])[0].get("name"),
+            "published_year": book_data.get("publish_date", "").split()[-1],
+            "page_count": book_data.get("number_of_pages"),
+            "subjects": [subject.get("name") for subject in book_data.get("subjects", [])],
+            "ebook_url": preview_url
         }
