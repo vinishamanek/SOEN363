@@ -26,7 +26,7 @@ def main():
     try:
         while True:  # Infinite loop to continuously fetch books
             print("Fetching random books with pagination...")
-            books = google_books_api.search_books_randomly_with_pagination(max_results=1, pages=1)  # Fetch up to 100 books
+            books = google_books_api.search_books_randomly_with_pagination(max_results=1, pages=1)  
 
             enriched_books = []
             for book in books:
@@ -46,7 +46,6 @@ def main():
             print("Batch processed. Continuing to fetch more books...\n")
 
     except KeyboardInterrupt:
-        # Gracefully handle manual stop
         print("Process stopped by user.")
 
     except Exception as e:

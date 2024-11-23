@@ -128,6 +128,11 @@ def insert_subject(cursor, subjects: List[str]) -> List[int]:
 
 def insert_book(cursor, book_data: Dict) -> Optional[int]:
     """Insert or update a book with rating attributes directly in the Book table."""
+    
+    if not book_data.get("isbn_10") or not book_data.get("isbn_13"):
+        print(f"Skipping book insertion due to missing ISBN: {book_data}")
+        return None
+    
     try:
         # Log book_data for debugging
         print(f"Inserting book: {book_data}")
