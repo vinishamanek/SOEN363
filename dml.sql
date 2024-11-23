@@ -203,6 +203,7 @@ WHERE NOT EXISTS (
     WHERE bc.book_id = b.book_id
 );
 
+
 -- 8. a view with hard-coded criteria
 
 CREATE OR REPLACE VIEW books_after_2020 AS
@@ -221,7 +222,6 @@ GROUP BY
     b.book_id;
 
 SELECT * FROM books_after_2020;
-
 
 
 -- 9. a few examples of constraints: overlap and covering constraints
@@ -248,29 +248,29 @@ WHERE b.book_id NOT IN (
 
 -- 10. implementation of division operator queries using NOT IN and NOT EXISTS
 
--- using NOT IN
+-- regular nested query using NOT IN
 SELECT DISTINCT b.book_id, b.title 
-FROM Book b
-WHERE NOT EXISTS (
-   SELECT s.subject_id
-   FROM Subject s 
-   WHERE s.name IN ('Mathematics', 'Computer science')
-   AND s.subject_id NOT IN (
-       SELECT bs.subject_id 
-       FROM BookSubject bs
-       WHERE bs.book_id = b.book_id
-   )
+FROM Book AS b
+WHERE b.book_id NOT IN (
+    SELECT b2.book_id 
+    FROM Book AS b2, Subject AS s
+    WHERE s.name IN ('Mathematics', 'Computer science')
+    AND s.subject_id NOT IN (
+        SELECT bs.subject_id 
+        FROM BookSubject AS bs
+        WHERE bs.book_id = b2.book_id
+    )
 );
 
--- using NOT EXISTS and EXCEPT
-SELECT DISTINCT b.book_id, b.title
-FROM Book b 
+-- correlated nested query using NOT EXISTS and EXCEPT
+SELECT DISTINCT b.book_id, b.title 
+FROM Book AS b
 WHERE NOT EXISTS (
-   SELECT s.subject_id
-   FROM Subject s
-   WHERE s.name IN ('Mathematics', 'Computer science')
-   EXCEPT 
-   SELECT bs.subject_id
-   FROM BookSubject bs
-   WHERE bs.book_id = b.book_id
+           (SELECT s.subject_id 
+            FROM Subject AS s
+            WHERE s.name IN ('Mathematics', 'Computer science'))
+            EXCEPT
+           (SELECT bs.subject_id 
+            FROM BookSubject AS bs 
+            WHERE bs.book_id = b.book_id)
 );
