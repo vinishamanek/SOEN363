@@ -98,17 +98,20 @@ CREATE TABLE Book (
     google_canonical_link URL_TYPE
 );
 
+-- WEAK ENTITY
 CREATE TABLE Ratings (
     book_id INTEGER PRIMARY KEY REFERENCES Book(book_id) ON DELETE CASCADE,
     avg_rating RATING_TYPE DEFAULT NULL,
     ratings_count INTEGER DEFAULT 0 CHECK (ratings_count >= 0)
 );
 
+-- ISA BOOK
 CREATE TABLE PhysicalBook (
     book_id INTEGER PRIMARY KEY REFERENCES Book(book_id) ON DELETE CASCADE,
     format FORMAT_TYPE
 );
 
+-- ISA BOOK
 CREATE TABLE EBook (
     book_id INTEGER PRIMARY KEY REFERENCES Book(book_id) ON DELETE CASCADE,
     ebook_url URL_TYPE NOT NULL
