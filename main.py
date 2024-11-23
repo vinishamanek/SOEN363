@@ -3,17 +3,14 @@ from fetch import GoogleBooksAPI, OpenLibraryAPI
 from insert import connect_to_db, insert_data
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 def main():
-    # Connect to the database
     connection = connect_to_db()
     if not connection:
         print("Failed to connect to the database")
         return
 
-    # API keys for Google Books API
     api_keys = [
         os.getenv("GOOGLE_API_KEY_1"),
         os.getenv("GOOGLE_API_KEY_2"),
@@ -24,7 +21,7 @@ def main():
     open_library_api = OpenLibraryAPI()
 
     try:
-        while True:  # Infinite loop to continuously fetch books
+        while True:  
             print("Fetching random books with pagination...")
             books = google_books_api.search_books_randomly_with_pagination(max_results=20, pages=1)  
 

@@ -1,25 +1,27 @@
--- -- Drop all existing objects if they exist
--- DROP TABLE IF EXISTS Ratings CASCADE;
--- DROP TABLE IF EXISTS BookSubject CASCADE;
--- DROP TABLE IF EXISTS BookCategory CASCADE;
--- DROP TABLE IF EXISTS BookAuthor CASCADE;
--- DROP TABLE IF EXISTS BookPublisher CASCADE;
--- DROP TABLE IF EXISTS Price CASCADE;
--- DROP TABLE IF EXISTS PhysicalBook CASCADE;
--- DROP TABLE IF EXISTS EBook CASCADE;
--- DROP TABLE IF EXISTS Book CASCADE;
--- DROP TABLE IF EXISTS Subject CASCADE;
--- DROP TABLE IF EXISTS Category CASCADE;
--- DROP TABLE IF EXISTS Author CASCADE;
--- DROP TABLE IF EXISTS Publisher CASCADE;
+-- DROP TABLES
+DROP TABLE IF EXISTS Ratings CASCADE;
+DROP TABLE IF EXISTS BookSubject CASCADE;
+DROP TABLE IF EXISTS BookCategory CASCADE;
+DROP TABLE IF EXISTS BookAuthor CASCADE;
+DROP TABLE IF EXISTS BookPublisher CASCADE;
+DROP TABLE IF EXISTS Price CASCADE;
+DROP TABLE IF EXISTS PhysicalBook CASCADE;
+DROP TABLE IF EXISTS EBook CASCADE;
+DROP TABLE IF EXISTS Book CASCADE;
+DROP TABLE IF EXISTS Subject CASCADE;
+DROP TABLE IF EXISTS Category CASCADE;
+DROP TABLE IF EXISTS Author CASCADE;
+DROP TABLE IF EXISTS Publisher CASCADE;
 
--- DROP DOMAIN IF EXISTS ISBN_TYPE10 CASCADE;
--- DROP DOMAIN IF EXISTS ISBN_TYPE13 CASCADE;
--- DROP DOMAIN IF EXISTS RATING_TYPE CASCADE;
--- DROP DOMAIN IF EXISTS URL_TYPE CASCADE;
--- DROP TYPE IF EXISTS FORMAT_TYPE CASCADE;
--- DROP TYPE IF EXISTS MATURITY_RATING CASCADE;
+DROP DOMAIN IF EXISTS ISBN_TYPE10 CASCADE;
+DROP DOMAIN IF EXISTS ISBN_TYPE13 CASCADE;
+DROP DOMAIN IF EXISTS RATING_TYPE CASCADE;
+DROP DOMAIN IF EXISTS URL_TYPE CASCADE;
 
+DROP TYPE IF EXISTS FORMAT_TYPE CASCADE;
+DROP TYPE IF EXISTS MATURITY_RATING CASCADE;
+
+-- SELECT TABLES
 SELECT * FROM Book;
 SELECT * FROM Price;
 SELECT * FROM PhysicalBook;
@@ -34,15 +36,19 @@ SELECT * FROM Author;
 SELECT * FROM Category;
 SELECT * FROM Subject;
 
+-- SELECT SIZE OF DB
 SELECT pg_size_pretty(pg_database_size(current_database())) AS database_size;
 SELECT pg_database_size(current_database()) / 1024 AS database_size_kb;
 
+-- SELECT VIEWS
 SELECT * FROM AdminBookInfo;
 SELECT * FROM PublicBookInfo;
--- Create custom domains and types
+
+-- CREATE TYPES
 CREATE TYPE FORMAT_TYPE AS ENUM ('Hardcover', 'Paperback', 'Ebook');
 CREATE TYPE MATURITY_RATING AS ENUM ('NOT_MATURE', 'MATURE');
 
+-- CREATE DOMAINS
 CREATE DOMAIN ISBN_TYPE10 AS VARCHAR(13)
     CONSTRAINT valid_isbn10 CHECK (VALUE ~ '^[0-9]{9}[0-9X]$');
 
@@ -55,109 +61,100 @@ CREATE DOMAIN RATING_TYPE AS DECIMAL(3, 1)
 CREATE DOMAIN URL_TYPE AS VARCHAR(2048)
     CHECK (VALUE ~ '^https?://');
 
--- Publisher Table
 CREATE TABLE Publisher (
-                           publisher_id SERIAL PRIMARY KEY,
-                           name VARCHAR(200) NOT NULL UNIQUE
+    publisher_id SERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL UNIQUE
 );
 
--- Author Table
 CREATE TABLE Author (
-                        author_id SERIAL PRIMARY KEY,
-                        name VARCHAR(100) UNIQUE
+    author_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE
 );
 
--- Category Table
 CREATE TABLE Category (
-                          category_id SERIAL PRIMARY KEY,
-                          name VARCHAR(100) NOT NULL UNIQUE
+    category_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
 );
 
--- Subject Table
 CREATE TABLE Subject (
-                         subject_id SERIAL PRIMARY KEY,
-                         name VARCHAR(500) NOT NULL UNIQUE
+    subject_id SERIAL PRIMARY KEY,
+    name VARCHAR(500) NOT NULL UNIQUE
 );
 
--- Book Table
 CREATE TABLE Book (
-                      book_id SERIAL PRIMARY KEY,
-                      isbn10 ISBN_TYPE10 DEFAULT NULL UNIQUE,
-                      isbn13 ISBN_TYPE13 DEFAULT NULL UNIQUE,
-                      title VARCHAR(500) NOT NULL,
-                      subtitle VARCHAR(500),
-                      description TEXT,
-                      language_code CHAR(3),
-                      publication_year INTEGER CHECK (publication_year >= 1400 AND publication_year <= EXTRACT(YEAR FROM CURRENT_DATE)),
-                      page_count INTEGER CHECK (page_count IS NULL OR page_count > 0),
-                      maturity_rating MATURITY_RATING,
-                      google_books_id VARCHAR(50) UNIQUE,
-                      google_preview_link URL_TYPE,
-                      google_info_link URL_TYPE,
-                      google_canonical_link URL_TYPE
+    book_id SERIAL PRIMARY KEY,
+    isbn10 ISBN_TYPE10 DEFAULT NULL UNIQUE,
+    isbn13 ISBN_TYPE13 DEFAULT NULL UNIQUE,
+    title VARCHAR(500) NOT NULL,
+    subtitle VARCHAR(500),
+    description TEXT,
+    language_code CHAR(3),
+    publication_year INTEGER CHECK (publication_year >= 1400 AND publication_year <= EXTRACT(YEAR FROM CURRENT_DATE)),
+    page_count INTEGER CHECK (page_count IS NULL OR page_count > 0),
+    maturity_rating MATURITY_RATING,
+    google_books_id VARCHAR(50) UNIQUE,
+    google_preview_link URL_TYPE,
+    google_info_link URL_TYPE,
+    google_canonical_link URL_TYPE
 );
 
--- Ratings Table
 CREATE TABLE Ratings (
-                         book_id INTEGER PRIMARY KEY REFERENCES Book(book_id) ON DELETE CASCADE,
-                         avg_rating RATING_TYPE DEFAULT NULL,
-                         ratings_count INTEGER DEFAULT 0 CHECK (ratings_count >= 0)
+    book_id INTEGER PRIMARY KEY REFERENCES Book(book_id) ON DELETE CASCADE,
+    avg_rating RATING_TYPE DEFAULT NULL,
+    ratings_count INTEGER DEFAULT 0 CHECK (ratings_count >= 0)
 );
 
--- PhysicalBook Table
 CREATE TABLE PhysicalBook (
-                              book_id INTEGER PRIMARY KEY REFERENCES Book(book_id) ON DELETE CASCADE,
-                              format FORMAT_TYPE
+    book_id INTEGER PRIMARY KEY REFERENCES Book(book_id) ON DELETE CASCADE,
+    format FORMAT_TYPE
 );
 
--- EBook Table
 CREATE TABLE EBook (
-                       book_id INTEGER PRIMARY KEY REFERENCES Book(book_id) ON DELETE CASCADE,
-                       ebook_url URL_TYPE NOT NULL
+    book_id INTEGER PRIMARY KEY REFERENCES Book(book_id) ON DELETE CASCADE,
+    ebook_url URL_TYPE NOT NULL
 );
 
--- Price Table
 CREATE TABLE Price (
-                       price_id SERIAL PRIMARY KEY,
-                       book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
-                       country CHAR(3) NOT NULL,
-                       on_sale_date DATE NOT NULL,
-                       saleability VARCHAR(20),
-                       list_price DECIMAL(10, 2),
-                       retail_price DECIMAL(10, 2),
-                       list_price_currency_code CHAR(3),
-                       retail_price_currency_code CHAR(3),
-                       buy_link URL_TYPE,
-                       CONSTRAINT valid_list_price CHECK (list_price IS NULL OR list_price >= 0),
-                       CONSTRAINT valid_retail_price CHECK (retail_price IS NULL OR retail_price >= 0),
-                       CONSTRAINT unique_price UNIQUE (book_id, country, on_sale_date)
+    price_id SERIAL PRIMARY KEY,
+    book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
+    country CHAR(3) NOT NULL,
+    on_sale_date DATE NOT NULL,
+    saleability VARCHAR(20),
+    list_price DECIMAL(10, 2),
+    retail_price DECIMAL(10, 2),
+    list_price_currency_code CHAR(3),
+    retail_price_currency_code CHAR(3),
+    buy_link URL_TYPE,
+    CONSTRAINT valid_list_price CHECK (list_price IS NULL OR list_price >= 0),
+    CONSTRAINT valid_retail_price CHECK (retail_price IS NULL OR retail_price >= 0),
+    CONSTRAINT unique_price UNIQUE (book_id, country, on_sale_date)
 );
 
--- Book Relationships
 CREATE TABLE BookAuthor (
-                            book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
-                            author_id INTEGER REFERENCES Author(author_id) ON DELETE CASCADE,
-                            PRIMARY KEY(book_id, author_id)
+    book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
+    author_id INTEGER REFERENCES Author(author_id) ON DELETE CASCADE,
+    PRIMARY KEY(book_id, author_id)
 );
 
 CREATE TABLE BookPublisher (
-                               book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
-                               publisher_id INTEGER REFERENCES Publisher(publisher_id) ON DELETE CASCADE,
-                               PRIMARY KEY(book_id, publisher_id)
+    book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
+    publisher_id INTEGER REFERENCES Publisher(publisher_id) ON DELETE CASCADE,
+    PRIMARY KEY(book_id, publisher_id)
 );
 
 CREATE TABLE BookCategory (
-                              book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
-                              category_id INTEGER REFERENCES Category(category_id) ON DELETE CASCADE,
-                              PRIMARY KEY (book_id, category_id)
+    book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
+    category_id INTEGER REFERENCES Category(category_id) ON DELETE CASCADE,
+    PRIMARY KEY (book_id, category_id)
 );
 
 CREATE TABLE BookSubject (
-                             book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
-                             subject_id INTEGER REFERENCES Subject(subject_id) ON DELETE CASCADE,
-                             PRIMARY KEY (book_id, subject_id)
+    book_id INTEGER REFERENCES Book(book_id) ON DELETE CASCADE,
+    subject_id INTEGER REFERENCES Subject(subject_id) ON DELETE CASCADE,
+    PRIMARY KEY (book_id, subject_id)
 );
 
+-- CREATE VIEW AdminBookInfo
 CREATE OR REPLACE VIEW AdminBookInfo AS
 SELECT
     b.book_id,
@@ -192,7 +189,7 @@ GROUP BY
     b.book_id, r.avg_rating, r.ratings_count, p.publisher_id, p.name;
 
 
-
+-- CREATE VIEW PublicBookInfo
 CREATE OR REPLACE VIEW PublicBookInfo AS
 SELECT
     b.book_id,
@@ -213,6 +210,7 @@ GROUP BY
     b.book_id, r.avg_rating, r.ratings_count;
 
 
+-- CREATE TRIGGER
 CREATE OR REPLACE FUNCTION validate_price()
 RETURNS TRIGGER AS $$
 BEGIN

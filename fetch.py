@@ -4,7 +4,6 @@ import requests
 from typing import List, Dict, Optional
 import time
 
-
 class GoogleBooksAPI:
     """Handles Google Books API interactions with extended field coverage."""
 

@@ -2,11 +2,9 @@ import psycopg2
 from typing import Dict, List, Optional, Union
 from datetime import datetime
 import os
-
 from dotenv import load_dotenv
 
 load_dotenv()
-
 
 def connect_to_db():
     """Establish a connection to the PostgreSQL database."""
@@ -24,7 +22,6 @@ def connect_to_db():
         print(f"Database connection error: {e}")
         return None
 
-
 def format_year(year_str: str) -> Optional[int]:
     """Format the year string to an integer if valid."""
     if not year_str:
@@ -36,11 +33,9 @@ def format_year(year_str: str) -> Optional[int]:
     except ValueError:
         return None
 
-
 def map_maturity_rating(rating: str) -> str:
     """Map the maturity rating to the database enum."""
     return 'MATURE' if rating == 'MATURE' else 'NOT_MATURE'
-
 
 def insert_publisher(cursor, publisher_name: str) -> Optional[int]:
     """Insert a publisher into the database."""
@@ -58,7 +53,6 @@ def insert_publisher(cursor, publisher_name: str) -> Optional[int]:
     except Exception as e:
         print(f"Error inserting publisher: {e}")
         return None
-
 
 def insert_author(cursor, authors: List[Union[str, Dict]]) -> List[int]:
     """Insert authors into the database and return their IDs."""
@@ -81,7 +75,6 @@ def insert_author(cursor, authors: List[Union[str, Dict]]) -> List[int]:
             print(f"Error inserting author {author_name}: {e}")
     return author_ids
 
-
 def insert_category(cursor, categories: List[str]) -> List[int]:
     """Insert categories into the database and return their IDs."""
     category_ids = []
@@ -102,7 +95,6 @@ def insert_category(cursor, categories: List[str]) -> List[int]:
         except Exception as e:
             print(f"Error inserting category {category}: {e}")
     return category_ids
-
 
 def insert_subject(cursor, subjects: List[str]) -> List[int]:
     """Insert subjects into the database and return their IDs."""
@@ -125,7 +117,6 @@ def insert_subject(cursor, subjects: List[str]) -> List[int]:
             print(f"Error inserting subject {subject}: {e}")
     return subject_ids
 
-
 def insert_book(cursor, book_data: Dict) -> Optional[int]:
     """Insert or update a book with rating attributes directly in the Book table."""
     
@@ -134,10 +125,8 @@ def insert_book(cursor, book_data: Dict) -> Optional[int]:
         return None
     
     try:
-        # Log book_data for debugging
         print(f"Inserting book: {book_data}")
 
-        # Execute SQL query
         cursor.execute("""
             INSERT INTO Book (
                 isbn10, isbn13, title, subtitle, description,
@@ -168,13 +157,11 @@ def insert_book(cursor, book_data: Dict) -> Optional[int]:
             book_data.get("google_canonical_link"),
         ))
 
-        # Return the generated book ID
         return cursor.fetchone()[0]
 
     except Exception as e:
         print(f"Error inserting book {book_data.get('title')}: {e}")
         return None
-
 
 def insert_rating(cursor, book_id: int, avg_rating: float, ratings_count: int) -> None:
     """Insert or update a rating in the Ratings table."""
@@ -188,7 +175,6 @@ def insert_rating(cursor, book_id: int, avg_rating: float, ratings_count: int) -
         """, (book_id, avg_rating, ratings_count))
     except Exception as e:
         print(f"Error inserting rating for book {book_id}: {e}")
-
 
 def insert_price(cursor, book_id: int, price_data: Dict) -> Optional[int]:
     """Insert or update price data for a book."""
@@ -223,7 +209,6 @@ def insert_price(cursor, book_id: int, price_data: Dict) -> Optional[int]:
         print(f"Error inserting price: {e}")
         return None
 
-
 def handle_book_format(cursor, book_id: int, book_data: Dict):
     """Handle the book's format (PhysicalBook or EBook)."""
     try:
@@ -249,7 +234,6 @@ def handle_book_format(cursor, book_id: int, book_data: Dict):
             """, (book_id, format_value))
     except Exception as e:
         print(f"Error handling book format: {e}")
-
 
 def insert_data(connection, books: List[Dict]):
     """Insert all book-related data into the database."""
