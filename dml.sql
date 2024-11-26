@@ -212,7 +212,6 @@ SELECT * FROM books_after_2020;
 
 -- 9.1 overlap constraint:
 -- finds books that violate mutual exclusion by appearing in both PhysicalBook and EBook tables
--- (in our case currently, nothing should be returned since there is mutual exclusion)
 SELECT b.book_id, b.title, p.format AS physical_format, e.ebook_url
 FROM Book b
 JOIN PhysicalBook p ON b.book_id = p.book_id

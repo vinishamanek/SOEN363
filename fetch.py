@@ -90,7 +90,7 @@ class GoogleBooksAPI:
             "maturity_rating": volume_info.get("maturityRating"),
             "average_rating": volume_info.get("averageRating"),
             "ratings_count": volume_info.get("ratingsCount"),
-            "physical_format": "Hardcover" if not sale_info.get("isEbook", False) else "Paperback",
+            "physical_format": "Paperback" if not sale_info.get("isEbook", False) else "Hardcover",
             "price_info": {
                 "listPrice": sale_info.get("listPrice", {}).get("amount"),
                 "retailPrice": sale_info.get("retailPrice", {}).get("amount"),

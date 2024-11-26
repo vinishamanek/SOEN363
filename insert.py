@@ -125,7 +125,7 @@ def insert_book(cursor, book_data: Dict) -> Optional[int]:
         return None
     
     try:
-        print(f"Inserting book: {book_data}")
+        # print(f"Inserting book: {book_data}")
 
         cursor.execute("""
             INSERT INTO Book (
