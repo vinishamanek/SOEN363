@@ -1,0 +1,39 @@
+1. basic search on attribute value: 
+                
+MATCH (b:Book)
+WHERE b.publication_year > 2023
+RETURN b.title, b.publication_year
+            
+2a. aggregation paperback
+
+MATCH (b:Book)
+WHERE b.format = "Paperback"
+RETURN count(b)
+
+2b. aggregation hardcover
+
+MATCH (b:Book)
+WHERE b.format = "Hardcover"
+RETURN count(b)
+
+
+2c. aggregation ebook  
+
+MATCH (b:Book)
+WHERE b.ebook_url IS NOT NULL
+RETURN count(b)
+
+3. nede to describe properly
+
+MATCH (b:Book)
+WHERE b.language_code = "en " and b.publication_year IS NOT NULL and b.page_count > 10000
+RETURN b.title, b.publication_year, b.language_code
+ORDER BY b.publication_year DESC
+LIMIT 300
+
+4. need to recheck
+
+MATCH (b:Book)
+WHERE b.publication_year IS NOT NULL
+RETURN b.publication_year as year, count(*) as number_of_books
+ORDER BY year DESC
