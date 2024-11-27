@@ -103,7 +103,7 @@ class Neo4jQuerier:
             params = {"search_term": "python programming"} if name == "Full Text Search" else None
             results, execution_time = self.measure_query_time(query, params)
             print(f"\n{name}:")
-            print(f"Execution time: {execution_time:.4f} seconds")
+            print(f"Execution time: {execution_time:.10f} seconds")
             print(f"Sample results: {results[:2]}")
 
         # # create indexes
@@ -116,7 +116,7 @@ class Neo4jQuerier:
         #     params = {"search_term": "python programming"} if name == "Full Text Search" else None
         #     results, execution_time = self.measure_query_time(query, params)
         #     print(f"\n{name}:")
-        #     print(f"Execution time: {execution_time:.4f} seconds")
+        #     print(f"Execution time: {execution_time:.10f} seconds")
         #     print(f"Sample results: {results[:2]}")
 
 def main():
