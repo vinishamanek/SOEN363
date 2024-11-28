@@ -229,3 +229,61 @@ CREATE TRIGGER trigger_validate_price
                          FOR EACH ROW
                          EXECUTE FUNCTION validate_price();
 
+
+
+
+SELECT b.book_id, b.title, b.isbn13, b.publication_year
+FROM Book b
+INNER JOIN (
+    SELECT title
+    FROM Book
+    GROUP BY title
+    HAVING COUNT(*) > 1
+) duplicates ON b.title = duplicates.title
+ORDER BY b.title, b.book_id;
+
+
+-- selecting books that exist in physical and ebook formats by matching titles, but different IDS
+SELECT p_book.title, p_book.book_id as physical_id, e_book.book_id as ebook_id
+FROM Book p_book
+INNER JOIN PhysicalBook p ON p_book.book_id = p.book_id
+INNER JOIN Book e_book ON p_book.title = e_book.title
+INNER JOIN EBook e ON e_book.book_id = e.book_id
+WHERE p_book.book_id != e_book.book_id;
+
+-- information about books available in both physical and ebook formats
+CREATE OR REPLACE VIEW LinkedBookFormats AS
+SELECT 
+    pb.book_id as physical_id,
+    eb.book_id as ebook_id,
+    b1.title,
+    b1.page_count as physical_book_page_count,
+    b1.isbn10 as physical_isbn10,
+    b1.isbn13 as physical_isbn13,
+    b2.isbn10 as ebook_isbn10,
+    b2.isbn13 as ebook_isbn13,
+    pb.format,
+    eb.ebook_url
+FROM PhysicalBook pb
+JOIN Book b1 ON pb.book_id = b1.book_id
+JOIN Book b2 ON b1.title = b2.title
+JOIN EBook eb ON b2.book_id = eb.book_id
+WHERE pb.book_id != eb.book_id;
+
+SELECT * FROM LinkedBookFormats;
+
+DROP VIEW LinkedBookFormats;
+
+-- number of ebooks with default url (so no url) vs a real custom url
+SELECT 
+   CASE 
+       WHEN ebook_url = 'https://example.com/default-ebook-url' THEN 'Default URL'
+       ELSE 'Custom URL'
+   END as url_type,
+   COUNT(*) as count
+FROM EBook
+GROUP BY 
+   CASE 
+       WHEN ebook_url = 'https://example.com/default-ebook-url' THEN 'Default URL'
+       ELSE 'Custom URL'
+   END;
