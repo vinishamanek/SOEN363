@@ -20,32 +20,32 @@ class Neo4jQuerier:
             return [dict(record) for record in result], execution_time
 
 # COMMENTING OUT THE CREATE INDEXES FOR NOW, WILL NEED TO FIX
-    # def create_indexes(self):
-    #     """Create indexes for better query performance"""
-    #     with self.driver.session() as session:
-    #         # Full-text search index for book titles
-    #         session.run("""
-    #             CREATE FULLTEXT INDEX book_title_index IF NOT EXISTS
-    #             FOR (b:Book) ON EACH [b.title]
-    #         """)
+    def create_indexes(self):
+        """Create indexes for better query performance"""
+        with self.driver.session() as session:
+            # Full-text search index for book titles
+            session.run("""
+                CREATE FULLTEXT INDEX book_title_index IF NOT EXISTS
+                FOR (b:Book) ON EACH [b.title]
+            """)
             
-    #         # Index for book ratings
-    #         session.run("""
-    #             CREATE INDEX book_rating_index IF NOT EXISTS
-    #             FOR (b:Book) ON b.avg_rating
-    #         """)
+            # Index for book ratings
+            session.run("""
+                CREATE INDEX book_rating_index IF NOT EXISTS
+                FOR (b:Book) ON b.avg_rating
+            """)
             
-    #         # Index for book prices
-    #         session.run("""
-    #             CREATE INDEX price_amount_index IF NOT EXISTS
-    #             FOR (p:Price) ON p.list_price
-    #         """)
+            # Index for book prices
+            session.run("""
+                CREATE INDEX price_amount_index IF NOT EXISTS
+                FOR (p:Price) ON p.list_price
+            """)
             
-    #         # Composite index for category name and book count
-    #         session.run("""
-    #             CREATE INDEX category_name_index IF NOT EXISTS
-    #             FOR (c:Category) ON c.name
-    #         """)
+            # Composite index for category name and book count
+            session.run("""
+                CREATE INDEX category_name_index IF NOT EXISTS
+                FOR (c:Category) ON c.name
+            """)
 
     def demonstrate_queries(self):
         """Run all query types and measure their performance"""
@@ -84,44 +84,48 @@ class Neo4jQuerier:
             """,
             
             # is group by a thing in cipher? need to check, but this is a good example query
-            # "group books by year of publication": """
-            #     MATCH (b:Book)
-            #     WHERE b.publication_year IS NOT NULL
-            #     RETURN b.publication_year as year, count(*) as number_of_books
-            #     ORDER BY year DESC
-            # """,
+            "group books by year of publication": """
+                MATCH (b:Book)
+                WHERE b.publication_year IS NOT NULL
+                RETURN b.publication_year as year, count(*) as number_of_books
+                ORDER BY year DESC
+            """,
             
             
-            # "full text search": """
-                
-            # """
+            "full text search": """
+                CALL db.index.fulltext.queryNodes('book_search', $search_term)
+                YIELD node, score
+                WHERE node.title IS NOT NULL
+                RETURN node.title as title, score
+                LIMIT 5
+            """
         }
 
         # test queries before creating indexes
         print("\nBefore creating indexes:")
         for name, query in queries.items():
-            params = {"search_term": "python programming"} if name == "Full Text Search" else None
+            params = {"search_term": "python programming"} if name == "full text search" else None
             results, execution_time = self.measure_query_time(query, params)
             print(f"\n{name}:")
             print(f"Execution time: {execution_time:.10f} seconds")
             print(f"Sample results: {results[:2]}")
 
-        # # create indexes
-        # print("\nCreating indexes...")
-        # self.create_indexes()
+        # create indexes
+        print("\nCreating indexes...")
+        self.create_indexes()
 
-        # # test queries after creating indexes
-        # print("\nAfter creating indexes:")
-        # for name, query in queries.items():
-        #     params = {"search_term": "python programming"} if name == "Full Text Search" else None
-        #     results, execution_time = self.measure_query_time(query, params)
-        #     print(f"\n{name}:")
-        #     print(f"Execution time: {execution_time:.10f} seconds")
-        #     print(f"Sample results: {results[:2]}")
+        # test queries after creating indexes
+        print("\nAfter creating indexes:")
+        for name, query in queries.items():
+            params = {"search_term": "python programming"} if name == "full text search" else None
+            results, execution_time = self.measure_query_time(query, params)
+            print(f"\n{name}:")
+            print(f"Execution time: {execution_time:.10f} seconds")
+            print(f"Sample results: {results[:2]}")
 
 def main():
     # connection details
-    uri = "bolt://localhost:7687"
+    uri = "bolt://localhost:7689"
     username = "neo4j"
     password = "soen363!"  
 
