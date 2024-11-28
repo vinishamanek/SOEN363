@@ -1,23 +1,20 @@
-# execute_cipher.py
-
 from neo4j import GraphDatabase
 import time
 from typing import List, Dict, Any
 
 class Neo4jQuerier:
-    def __init__(self, uri: str, username: str, password: str):
-        self.driver = GraphDatabase.driver(uri, auth=(username, password))
+   def __init__(self, uri: str, username: str, password: str):
+       self.driver = GraphDatabase.driver(uri, auth=(username, password))
 
-    def close(self):
-        self.driver.close()
+   def close(self):
+       self.driver.close()
 
-    def measure_query_time(self, query: str, params: Dict = None) -> tuple[List[Dict[str, Any]], float]:
-        """Execute a query and measure its execution time"""
-        with self.driver.session() as session:
-            start_time = time.time()
-            result = list(session.run(query, params or {}))
-            execution_time = time.time() - start_time
-            return [dict(record) for record in result], execution_time
+   def measure_query_time(self, query: str, params: Dict = None) -> tuple[List[Dict[str, Any]], float]:
+       with self.driver.session() as session:
+           start_time = time.time()
+           result = list(session.run(query, params or {}))
+           execution_time = time.time() - start_time
+           return [dict(record) for record in result], execution_time
 
 # COMMENTING OUT THE CREATE INDEXES FOR NOW, WILL NEED TO FIX
     def create_indexes(self):
@@ -129,11 +126,11 @@ def main():
     username = "neo4j"
     password = "soen363!"  
 
-    querier = Neo4jQuerier(uri, username, password)
-    try:
-        querier.demonstrate_queries()
-    finally:
-        querier.close()
+   querier = Neo4jQuerier(uri, username, password)
+   try:
+       querier.demonstrate_queries()
+   finally:
+       querier.close()
 
 if __name__ == "__main__":
-    main()
+   main()
