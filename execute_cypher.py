@@ -21,11 +21,26 @@ class Neo4jQuerier:
         """Create indexes for better query performance"""
         with self.driver.session() as session:
             # full-text search index for book titles
-            session.run("""
-                CREATE FULLTEXT INDEX book_title_index IF NOT EXISTS
-                FOR (b:Book) ON EACH [b.title]
-            """)
-            
+            try:
+                session.run("""
+                    DROP INDEX book_title_index IF EXISTS
+                """)
+                print("Dropped existing full-text index")
+            except Exception as e:
+                print(f"Error dropping index: {str(e)}")
+
+            # Create full-text index 
+            try:
+                session.run("""
+                    CREATE FULLTEXT INDEX book_title_index 
+                    FOR (b:Book) 
+                    ON EACH [b.title]
+                """)
+                print("Created full-text index")
+            except Exception as e:
+                print(f"Error creating full-text index: {str(e)}")
+                
+                
             # index for book ratings
             session.run("""
                 CREATE INDEX book_rating_index IF NOT EXISTS
@@ -44,9 +59,11 @@ class Neo4jQuerier:
                 FOR (c:Category) ON c.name
             """)
 
+
     def demonstrate_queries(self):
         """Run all query types and measure their performance"""
         queries = {
+            
             # find books published after 2023 (so only 2024)
             "basic search on attribute value": """
                 MATCH (b:Book)
@@ -90,26 +107,30 @@ class Neo4jQuerier:
                 WHERE b.publication_year IS NOT NULL
                 RETURN b.publication_year as year, count(*) as number_of_books
                 ORDER BY year DESC
-            """,
-            
-            # full-text search on book titles with relevance score
+            """
+        }
+
+        fulltext_query = {
             "full text search": """
-                CALL db.index.fulltext.queryNodes('book_search', $search_term)
+                CALL db.index.fulltext.queryNodes('book_title_index', $search_term)
                 YIELD node, score
                 WHERE node.title IS NOT NULL
                 RETURN node.title as title, score
                 LIMIT 5
             """
         }
-
+        
         # test queries before creating indexes
         print("\nBefore creating indexes:")
         for name, query in queries.items():
-            params = {"search_term": "python programming"} if name == "full text search" else None
-            results, execution_time = self.measure_query_time(query, params)
-            print(f"\n{name}:")
-            print(f"Execution time: {execution_time:.10f} seconds")
-            print(f"Sample results: {results[:2]}")
+            try:
+                results, execution_time = self.measure_query_time(query)
+                print(f"\n{name}:")
+                print(f"Execution time: {execution_time:.10f} seconds")
+                print(f"Sample results: {results[:2]}")
+            except Exception as e:
+                print(f"\n{name}:")
+                print(f"Error executing query: {str(e)}")
 
         # create indexes
         print("\nCreating indexes...")
@@ -118,11 +139,25 @@ class Neo4jQuerier:
         # test queries after creating indexes
         print("\nAfter creating indexes:")
         for name, query in queries.items():
-            params = {"search_term": "python programming"} if name == "full text search" else None
-            results, execution_time = self.measure_query_time(query, params)
-            print(f"\n{name}:")
-            print(f"Execution time: {execution_time:.10f} seconds")
-            print(f"Sample results: {results[:2]}")
+            try:
+                results, execution_time = self.measure_query_time(query)
+                print(f"\n{name}:")
+                print(f"Execution time: {execution_time:.10f} seconds")
+                print(f"Sample results: {results[:2]}")
+            except Exception as e:
+                print(f"\n{name}:")
+                print(f"Error executing query: {str(e)}")
+                
+        # test full-text search query
+        for name, query in fulltext_query.items():
+            try:
+                results, execution_time = self.measure_query_time(query, {"search_term": "python programming"})
+                print(f"\n{name}:")
+                print(f"Execution time: {execution_time:.10f} seconds")
+                print(f"Sample results: {results[:2]}")
+            except Exception as e:
+                print(f"\n{name}:")
+                print(f"Error executing query: {str(e)}")
 
 def main():
     # connection details
