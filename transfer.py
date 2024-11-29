@@ -121,18 +121,17 @@ def create_price_nodes(tx, prices):
         UNWIND $prices AS price
         MATCH (b:Book), (p:Price)
         WHERE b.id = price.book_id AND p.id = price.id
-        CREATE (b)-[:HAS_PRICE]->(p)
+        CREATE (b)-[:PRICED_AT]->(p)
     """, prices=prices)
 
-def create_relationships(tx, relationships, type):
-    # create relationships in batch using indexes
+def create_relationships(tx, relationships, rel_type, node_type):
     tx.run(f"""
         UNWIND $rels AS rel
-        MATCH (b:Book), (e:{type})
+        MATCH (b:Book), (e:{node_type})
         WHERE b.id = rel.book_id AND e.id = rel.entity_id
-        CREATE (b)-[:{type.upper()}]->(e)
+        CREATE (b)-[:{rel_type}]->(e)
     """, rels=relationships)
-
+    
 def main():
     with driver.session() as session:
         # database reset
@@ -223,25 +222,25 @@ def main():
         # Book-Author relationships
         pg_cursor.execute("SELECT * FROM BookAuthor")
         author_rels = [{"book_id": row[0], "entity_id": row[1]} for row in pg_cursor.fetchall()]
-        session.execute_write(create_relationships, author_rels, "Author")
+        session.execute_write(create_relationships, author_rels, "AUTHORED_BY", "Author")
         print(f"{len(author_rels)} book-author relationships created successfully.")
 
         # Book-Publisher relationships
         pg_cursor.execute("SELECT * FROM BookPublisher")
         publisher_rels = [{"book_id": row[0], "entity_id": row[1]} for row in pg_cursor.fetchall()]
-        session.execute_write(create_relationships, publisher_rels, "Publisher")
+        session.execute_write(create_relationships, publisher_rels, "PUBLISHED_BY", "Publisher")
         print(f"{len(publisher_rels)} book-publisher relationships created successfully.")
 
         # Book-Category relationships
         pg_cursor.execute("SELECT * FROM BookCategory")
         category_rels = [{"book_id": row[0], "entity_id": row[1]} for row in pg_cursor.fetchall()]
-        session.execute_write(create_relationships, category_rels, "Category")
+        session.execute_write(create_relationships, category_rels, "CATEGORIZED_AS", "Category")
         print(f"{len(category_rels)} book-category relationships created successfully.")
 
         # Book-Subject relationships
         pg_cursor.execute("SELECT * FROM BookSubject")
         subject_rels = [{"book_id": row[0], "entity_id": row[1]} for row in pg_cursor.fetchall()]
-        session.execute_write(create_relationships, subject_rels, "Subject")
+        session.execute_write(create_relationships, subject_rels, "HAS_SUBJECT", "Subject")
         print(f"{len(subject_rels)} book-subject relationships created successfully.")
 
 if __name__ == "__main__":
