@@ -1,29 +1,28 @@
-1. basic search on attribute value: 
+1. basic search on attribute value: find books published after 2023 (so only 2024)
                 
 MATCH (b:Book)
 WHERE b.publication_year > 2023
 RETURN b.title, b.publication_year
             
-2a. aggregation paperback
+2a. aggregation paperback: count total number of books in paperback format
 
 MATCH (b:Book)
 WHERE b.format = "Paperback"
 RETURN count(b)
 
-2b. aggregation hardcover
+2b. aggregation hardcover: count total number of books in hardcover format
 
 MATCH (b:Book)
 WHERE b.format = "Hardcover"
 RETURN count(b)
 
-
-2c. aggregation ebook  
+2c. aggregation ebook: count total number of books in ebook format
 
 MATCH (b:Book)
 WHERE b.ebook_url IS NOT NULL
 RETURN count(b)
 
-3. nede to describe properly
+3. 300 english books with over 10000 pages, sorted by publication year
 
 MATCH (b:Book)
 WHERE b.language_code = "en " and b.publication_year IS NOT NULL and b.page_count > 10000
@@ -31,9 +30,17 @@ RETURN b.title, b.publication_year, b.language_code
 ORDER BY b.publication_year DESC
 LIMIT 300
 
-4. need to recheck
+4. group books by publication year and count
 
 MATCH (b:Book)
 WHERE b.publication_year IS NOT NULL
 RETURN b.publication_year as year, count(*) as number_of_books
 ORDER BY year DESC
+
+5. full text search
+                
+CALL db.index.fulltext.queryNodes('book_title_index', $search_term)
+YIELD node, score
+WHERE node.title IS NOT NULL
+RETURN node.title as title, score
+LIMIT 5
