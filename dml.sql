@@ -4,7 +4,7 @@
 
 SELECT title, publication_year, page_count
 FROM Book
-WHERE publication_year > 2010 AND page_count > 200;
+WHERE publication_year > 2020 AND page_count > 2000;
 
 
 -- 2. basic select with simple group by clause (with and without having clause)
@@ -212,10 +212,12 @@ SELECT * FROM books_after_2020;
 
 -- 9.1 overlap constraint:
 -- finds books that violate mutual exclusion by appearing in both PhysicalBook and EBook tables
-SELECT b.book_id, b.title, p.format AS physical_format, e.ebook_url
-FROM Book b
-JOIN PhysicalBook p ON b.book_id = p.book_id
-JOIN EBook e ON b.book_id = e.book_id;
+-- note that the isbn10 and isbn13 columns are different for a physical book and its corresponding ebook
+SELECT b1.title, b1.book_id as physical_id, b2.book_id as ebook_id
+FROM Book b1
+JOIN PhysicalBook p ON b1.book_id = p.book_id
+JOIN Book b2 ON b1.title = b2.title AND b1.book_id != b2.book_id
+JOIN EBook e ON b2.book_id = e.book_id;
 
 -- 9.2 covering constraint:
 -- finds books that violate covering constraint by not appearing in either PhysicalBook or EBook tables
