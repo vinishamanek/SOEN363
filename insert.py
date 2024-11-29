@@ -213,15 +213,12 @@ def handle_book_format(cursor, book_id: int, book_data: Dict):
     """Handle the book's format (PhysicalBook or EBook)."""
     try:
         if book_data.get("isEbook"):
-            ebook_url = book_data.get("ebook_url")
-            if not ebook_url:
-                ebook_url = "https://example.com/default-ebook-url"
             cursor.execute("""
                 INSERT INTO EBook (book_id, ebook_url)
                 VALUES (%s, %s)
                 ON CONFLICT (book_id) DO UPDATE
                 SET ebook_url = EXCLUDED.ebook_url;
-            """, (book_id, ebook_url))
+            """, (book_id, book_data.get("ebook_url")))
         else:
             format_value = book_data.get("physical_format", "Hardcover").capitalize()
             if format_value not in ['Hardcover', 'Paperback']:

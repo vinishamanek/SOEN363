@@ -225,11 +225,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trigger_validate_price
-    BEFORE INSERT OR UPDATE ON Price
-                         FOR EACH ROW
-                         EXECUTE FUNCTION validate_price();
-
-
+BEFORE INSERT OR UPDATE ON Price
+    FOR EACH ROW
+        EXECUTE FUNCTION validate_price();
 
 
 SELECT b.book_id, b.title, b.isbn13, b.publication_year
@@ -274,16 +272,26 @@ SELECT * FROM LinkedBookFormats;
 
 DROP VIEW LinkedBookFormats;
 
--- number of ebooks with default url (so no url) vs a real custom url
+-- number of ebooks with no url vs a real custom url
 SELECT 
-   CASE 
-       WHEN ebook_url = 'https://example.com/default-ebook-url' THEN 'Default URL'
-       ELSE 'Custom URL'
-   END as url_type,
-   COUNT(*) as count
-FROM EBook
+    CASE 
+        WHEN ebook_url IS NULL THEN 'No URL'
+        ELSE 'Has URL'
+    END as url_type,
+    COUNT(*) as count 
+FROM EBook 
 GROUP BY 
-   CASE 
-       WHEN ebook_url = 'https://example.com/default-ebook-url' THEN 'Default URL'
-       ELSE 'Custom URL'
-   END;
+    CASE 
+        WHEN ebook_url IS NULL THEN 'No URL'
+        ELSE 'Has URL'
+    END;
+
+-- to change the default ebook url to null
+-- first, modify the not null constraint
+ALTER TABLE EBook 
+    ALTER COLUMN ebook_url DROP NOT NULL;
+
+-- update existing default urls to null
+UPDATE EBook 
+SET ebook_url = NULL 
+WHERE ebook_url = 'https://example.com/default-ebook-url';
