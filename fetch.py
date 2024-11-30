@@ -25,19 +25,22 @@ class GoogleBooksAPI:
         """Handle API requests with retries and key rotation."""
         retries, delay = 5, 1
         for attempt in range(retries):
-            params["key"] = self.get_current_api_key()
+            current_key = self.get_current_api_key()
+            # Skip adding the key parameter if None - allows public API access
+            if current_key:
+                params["key"] = current_key
             try:
                 response = requests.get(self.base_url, params=params)
                 if response.status_code == 200:
                     return response
                 elif response.status_code == 429:  # Rate-limited
-                    print(f"Rate limit reached for key {self.current_key_index}. Retrying...")
-                    self.rotate_api_key()
+                    print(f"Rate limit reached. Retrying...")
+                    if current_key:  # Only rotate if we have keys
+                        self.rotate_api_key()
                     time.sleep(delay)
-                    delay *= 2  # Exponential backoff
+                    delay *= 2
             except requests.RequestException as e:
                 print(f"Request error: {e}")
-        print("All keys exhausted or maximum retries reached. Skipping this request.")
         return None
 
     def search_books_randomly_with_pagination(self, max_results: int = 10, pages: int = 5) -> List[Dict]:

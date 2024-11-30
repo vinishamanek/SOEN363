@@ -20,9 +20,11 @@ class BookDataPipeline:
         
         # initialize API keys for rotation 
         self.api_keys = [
-            os.getenv("GOOGLE_API_KEY_1"),
-            os.getenv("GOOGLE_API_KEY_2"),
-            os.getenv("GOOGLE_API_KEY_3"),
+            key for key in [
+                os.getenv("GOOGLE_API_KEY_1"),
+                os.getenv("GOOGLE_API_KEY_2"),
+                os.getenv("GOOGLE_API_KEY_3"),
+            ] if key is not None
         ]
         
         # initialize API clients
@@ -62,6 +64,9 @@ class BookDataPipeline:
         Returns:
             bool: True if batch was processed successfully, False otherwise
         """
+        
+        logger.info(f"Current API keys: {self.api_keys}")  # Add this line
+
         try:
             # fetch random books from Google Books API
             logger.info("Fetching random books with pagination...")
