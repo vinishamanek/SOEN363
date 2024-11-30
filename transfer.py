@@ -23,9 +23,9 @@ pg_conn = psycopg2.connect(
 pg_cursor = pg_conn.cursor()
 
 # neo4j connection
-NEO4J_URI = "bolt://localhost:7689"
-NEO4J_USERNAME = "neo4j"
-NEO4J_PASSWORD = "soen363!"
+NEO4J_URI = os.getenv("NEO4J_URI")
+NEO4J_USERNAME = os.getenv("NEO4J_USERNAME")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
 
 def create_indexes(session):

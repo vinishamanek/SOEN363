@@ -1,6 +1,9 @@
 from neo4j import GraphDatabase
 import time
 from typing import List, Dict, Any
+import os
+from dotenv import load_dotenv
+
 
 class Neo4jQuerier:
     def __init__(self, uri: str, username: str, password: str):
@@ -160,10 +163,13 @@ class Neo4jQuerier:
                 print(f"Error executing query: {str(e)}")
 
 def main():
+    
+    load_dotenv()
+    
     # connection details
-    uri = "bolt://localhost:7689"
-    username = "neo4j"
-    password = "soen363!"  
+    uri = os.getenv("NEO4J_URI")
+    username = os.getenv("NEO4J_USERNAME")
+    password = os.getenv("NEO4J_PASSWORD") 
 
     querier = Neo4jQuerier(uri, username, password)
     try:
