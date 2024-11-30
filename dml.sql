@@ -242,15 +242,18 @@ WHERE p.book_id IS NULL AND e.book_id IS NULL;
 
 -- 10.1 regular nested query using NOT IN
 SELECT DISTINCT b.book_id, b.title 
-FROM Book AS b
+FROM Book b
 WHERE b.book_id NOT IN (
-    SELECT b2.book_id 
-    FROM Book AS b2, Subject AS s
-    WHERE s.name IN ('Mathematics', 'Computer science')
-    AND s.subject_id NOT IN (
-        SELECT bs.subject_id 
-        FROM BookSubject AS bs
-        WHERE bs.book_id = b2.book_id
+    SELECT DISTINCT b2.book_id
+    FROM Book b2
+    WHERE EXISTS (
+        (SELECT s.subject_id 
+         FROM Subject s
+         WHERE s.name IN ('Mathematics', 'Computer science'))
+        EXCEPT
+        (SELECT bs.subject_id 
+         FROM BookSubject bs
+         WHERE bs.book_id = b2.book_id)
     )
 );
 
@@ -265,4 +268,19 @@ WHERE NOT EXISTS (
            (SELECT bs.subject_id 
             FROM BookSubject AS bs 
             WHERE bs.book_id = b.book_id)
+);
+
+
+-- extra 10. terrible performance querying using not in
+SELECT DISTINCT b.book_id, b.title 
+FROM Book AS b
+WHERE b.book_id NOT IN (
+    SELECT b2.book_id 
+    FROM Book AS b2, Subject AS s
+    WHERE s.name IN ('Mathematics', 'Computer science')
+    AND s.subject_id NOT IN (
+        SELECT bs.subject_id 
+        FROM BookSubject AS bs
+        WHERE bs.book_id = b2.book_id
+    )
 );
