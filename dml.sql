@@ -230,6 +230,13 @@ WHERE b.book_id NOT IN (
     SELECT book_id FROM EBook
 );
 
+-- vs, better performing query for covering constraint using LEFT JOIN
+
+SELECT b.book_id, b.title
+FROM Book b
+LEFT JOIN PhysicalBook p ON b.book_id = p.book_id
+LEFT JOIN EBook e ON b.book_id = e.book_id
+WHERE p.book_id IS NULL AND e.book_id IS NULL;
 
 -- 10. implementation of division operator queries using NOT IN and NOT EXISTS
 
