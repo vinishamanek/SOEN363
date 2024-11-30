@@ -91,8 +91,8 @@ class Neo4jQuerier:
             # count total number of ebooks
             "aggregation ebook": """
                 MATCH (b:Book)
-                WHERE b.ebook_url IS NOT NULL
-                RETURN count(b)
+                WHERE b.is_ebook = true
+                RETURN count(b) as ebookCount
             """,
             
             # find english books with over 10000 pages, sorted by publication year
@@ -164,9 +164,10 @@ class Neo4jQuerier:
 
 def main():
     
+    # load environment variables
     load_dotenv()
     
-    # connection details
+    # graphdb connection details
     uri = os.getenv("NEO4J_URI")
     username = os.getenv("NEO4J_USERNAME")
     password = os.getenv("NEO4J_PASSWORD") 

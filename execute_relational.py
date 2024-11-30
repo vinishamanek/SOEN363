@@ -1,6 +1,8 @@
 import psycopg2
 import time
 from typing import List, Dict, Any, Tuple
+import os
+from dotenv import load_dotenv
 
 class PostgresQuerier:
     def __init__(self, dbname: str, user: str, password: str, host: str, port: str):
@@ -38,37 +40,31 @@ class PostgresQuerier:
     def create_indexes(self):
         """Create indexes for better query performance"""
         with self.conn.cursor() as cur:
-            # Index for book titles (using gin for full text search)
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS book_title_idx 
-                ON Book USING gin(to_tsvector('english', title));
-            """)
-            
-            # Index for ratings
+            # index for ratings
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS ratings_avg_idx 
                 ON Ratings(avg_rating);
             """)
             
-            # Index for book prices
+            # index for book prices
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS price_list_idx 
                 ON Price(list_price);
             """)
             
-            # Index for category names
+            # index for category names
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS category_name_idx 
                 ON Category(name);
             """)
             
-            # Index for publication year
+            # index for publication year
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS book_year_idx 
                 ON Book(publication_year);
             """)
             
-            # Index for language code
+            # index for language code
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS book_language_idx 
                 ON Book(language_code);
@@ -118,34 +114,18 @@ class PostgresQuerier:
                 WHERE publication_year IS NOT NULL
                 GROUP BY publication_year
                 ORDER BY year DESC;
-            """,
-            
-            "full text title search": """
-                SELECT b.title, 
-                       string_agg(a.name, '; ') as authors,
-                       r.avg_rating,
-                       ts_rank(to_tsvector('english', b.title), 
-                              to_tsquery('english', %(search_term)s)) as relevance
-                FROM Book b
-                LEFT JOIN Ratings r ON b.book_id = r.book_id
-                LEFT JOIN BookAuthor ba ON b.book_id = ba.book_id
-                LEFT JOIN Author a ON ba.author_id = a.author_id
-                WHERE to_tsvector('english', b.title) @@ to_tsquery('english', %(search_term)s)
-                GROUP BY b.book_id, b.title, r.avg_rating
-                ORDER BY relevance DESC
-                LIMIT 5;
             """
         }
 
-        # Test queries before creating indexes
+        # test queries before creating indexes
         print("\nBefore creating indexes:")
         self._run_queries(queries)
 
-        # Create indexes
+        # create indexes
         print("\nCreating indexes...")
         self.create_indexes()
 
-        # Test queries after creating indexes
+        # test queries after creating indexes
         print("\nAfter creating indexes:")
         self._run_queries(queries)
 
@@ -159,14 +139,18 @@ class PostgresQuerier:
             print(f"Sample results: {results[:2]}")
 
 def main():
-    # Database connection details
-    dbname = "bookdatabase"
-    user = "postgres"
-    password = ""  # Set your password here
-    host = "localhost"
-    port = "5432"
+    
+    # load environment variables
+    load_dotenv()
+    
+    # relational db connection details
+    dbname = os.getenv("DB_NAME")
+    user = os.getenv("DB_USER")
+    password = os.getenv("DB_PASSWORD")
+    host = os.getenv("DB_HOST")
+    port = os.getenv("DB_PORT")
 
-    # Create querier instance and run demonstrations
+    # create querier instance and run demonstrations
     querier = PostgresQuerier(dbname, user, password, host, port)
     try:
         querier.demonstrate_queries()

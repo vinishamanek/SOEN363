@@ -270,8 +270,7 @@ WHERE NOT EXISTS (
             WHERE bs.book_id = b.book_id)
 );
 
-
--- extra 10. terrible performance querying using not in
+-- extra 10. terrible performance querying using not in (really bad performance)
 SELECT DISTINCT b.book_id, b.title 
 FROM Book AS b
 WHERE b.book_id NOT IN (

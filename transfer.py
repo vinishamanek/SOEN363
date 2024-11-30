@@ -95,7 +95,12 @@ def create_book_nodes(tx, books):
             avg_rating: book.avg_rating,
             ratings_count: book.ratings_count,
             format: book.format,
-            ebook_url: book.ebook_url
+            ebook_url: book.ebook_url,
+            is_ebook: CASE 
+                WHEN book.ebook_url IS NOT NULL THEN true
+                WHEN book.format IS NULL THEN true
+                ELSE false
+            END
         })
     """, books=books)
 
