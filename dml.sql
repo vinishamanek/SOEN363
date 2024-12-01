@@ -93,44 +93,14 @@ WHERE r.avg_rating > (SELECT AVG(avg_rating) FROM Ratings)
 ORDER BY r.avg_rating DESC;
 
 -- 6.2 authors that have books published after 2020
-SELECT a.name AS author_name,
-       (SELECT b.publication_year
-        FROM BookAuthor ba
-        JOIN Book b ON ba.book_id = b.book_id
-        WHERE ba.author_id = a.author_id
-        AND b.publication_year > 2020) AS publication_year
+SELECT DISTINCT 
+    a.name AS author_name,
+    b.publication_year
 FROM Author a
-WHERE EXISTS (
-    SELECT 1
-    FROM BookAuthor ba
-    JOIN Book b ON ba.book_id = b.book_id
-    WHERE ba.author_id = a.author_id
-    AND b.publication_year > 2020
-);
-
--- 6.3 books with price is higher than the average price of books in the same category and country
-SELECT b.title, c.name AS category_name, p.country, p.retail_price,(
-           SELECT AVG(p2.retail_price)
-           FROM Price p2
-           JOIN Book b2 ON p2.book_id = b2.book_id
-           JOIN BookCategory bc2 ON b2.book_id = bc2.book_id
-           WHERE bc2.category_id = bc.category_id
-           AND p2.country = p.country
-       ) AS category_avg_price
-FROM Book b
-JOIN BookCategory bc ON b.book_id = bc.book_id
-JOIN Category c ON bc.category_id = c.category_id
-JOIN Price p ON b.book_id = p.book_id
-WHERE p.retail_price > (
-    SELECT AVG(p2.retail_price)
-    FROM Price p2
-    JOIN Book b2 ON p2.book_id = b2.book_id
-    JOIN BookCategory bc2 ON b2.book_id = bc2.book_id
-    WHERE bc2.category_id = bc.category_id
-    AND p2.country = p.country
-)
-ORDER BY c.name, p.country, p.retail_price DESC;
-
+JOIN BookAuthor ba ON a.author_id = ba.author_id
+JOIN Book b ON ba.book_id = b.book_id
+WHERE b.publication_year > 2020
+ORDER BY a.name;
 
 -- 7. set operations
 
@@ -224,14 +194,10 @@ JOIN EBook e ON b2.book_id = e.book_id;
 -- (in our case currently, nothing should be returned since there is complete coverage)
 SELECT b.book_id, b.title
 FROM Book b
-WHERE b.book_id NOT IN (
-    SELECT book_id FROM PhysicalBook
-    UNION
-    SELECT book_id FROM EBook
-);
+WHERE NOT EXISTS (SELECT 1 FROM PhysicalBook p WHERE p.book_id = b.book_id)
+  AND NOT EXISTS (SELECT 1 FROM EBook e WHERE e.book_id = b.book_id);
 
--- vs, better performing query for covering constraint using LEFT JOIN
-
+-- equvalent query for covering constraint using LEFT JOIN
 SELECT b.book_id, b.title
 FROM Book b
 LEFT JOIN PhysicalBook p ON b.book_id = p.book_id
