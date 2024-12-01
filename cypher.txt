@@ -22,13 +22,13 @@ MATCH (b:Book)
 WHERE b.ebook_url IS NOT NULL
 RETURN count(b)
 
-3. 300 english books with over 10000 pages, sorted by publication year
+3. 10 english books with over 10000 pages, sorted by publication year
 
 MATCH (b:Book)
 WHERE b.language_code = "en " and b.publication_year IS NOT NULL and b.page_count > 10000
-RETURN b.title, b.publication_year, b.language_code
+RETURN b.title, b.publication_year, b.language_code, b.page_count
 ORDER BY b.publication_year DESC
-LIMIT 300
+LIMIT 10
 
 4. group books by publication year and count
 
@@ -37,9 +37,34 @@ WHERE b.publication_year IS NOT NULL
 RETURN b.publication_year as year, count(*) as number_of_books
 ORDER BY year DESC
 
-5. full text search
-                
+5. indexes created in execute_cypher.py
+
+CREATE INDEX book_rating_index IF NOT EXISTS
+FOR (b:Book) ON b.avg_rating
+            
+CREATE INDEX price_amount_index IF NOT EXISTS
+FOR (p:Price) ON p.list_price
+
+CREATE INDEX category_name_index IF NOT EXISTS
+FOR (c:Category) ON c.name
+
+
+6. full text search
+
+creating index: 
+CREATE FULLTEXT INDEX book_title_index 
+FOR (b:Book) 
+ON EACH [b.title]
+
+search in general:
 CALL db.index.fulltext.queryNodes('book_title_index', $search_term)
+YIELD node, score
+WHERE node.title IS NOT NULL
+RETURN node.title as title, score
+LIMIT 5
+
+search for search_term = "clerk":
+CALL db.index.fulltext.queryNodes('book_title_index', "clerk")
 YIELD node, score
 WHERE node.title IS NOT NULL
 RETURN node.title as title, score
