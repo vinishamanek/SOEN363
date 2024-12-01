@@ -214,6 +214,7 @@ GROUP BY
 
 
 -- CREATE TRIGGER
+-- trigger to validate that the retail price is not higher than the list price
 CREATE OR REPLACE FUNCTION validate_price()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -228,6 +229,14 @@ CREATE TRIGGER trigger_validate_price
 BEFORE INSERT OR UPDATE ON Price
     FOR EACH ROW
         EXECUTE FUNCTION validate_price();
+
+-- looking at books where list price and retail price are not equal
+-- written to ensure trigger works
+SELECT b.book_id, b.title, 
+       p.list_price, p.retail_price
+FROM Book b
+JOIN Price p ON b.book_id = p.book_id 
+    AND p.list_price != p.retail_price
 
 
 SELECT b.book_id, b.title, b.isbn13, b.publication_year
