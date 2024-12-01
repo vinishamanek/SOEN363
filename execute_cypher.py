@@ -20,6 +20,19 @@ class Neo4jQuerier:
             execution_time = time.time() - start_time
             return [dict(record) for record in result], execution_time
 
+    def drop_indexes(self):
+        """Drop all existing indexes"""
+        with self.driver.session() as session:
+            try:
+                session.run("DROP INDEX book_title_index IF EXISTS")
+                session.run("DROP INDEX book_year_index IF EXISTS")
+                session.run("DROP INDEX book_format_index IF EXISTS")
+                session.run("DROP INDEX book_lang_pages_index IF EXISTS")
+                session.run("DROP INDEX book_ebook_index IF EXISTS")
+                print("Dropped existing indexes")
+            except Exception as e:
+                print(f"Error dropping indexes: {str(e)}")
+                
     def create_indexes(self):
         """Create indexes for better query performance"""
         with self.driver.session() as session:
@@ -32,7 +45,7 @@ class Neo4jQuerier:
             except Exception as e:
                 print(f"Error dropping index: {str(e)}")
 
-            # Create full-text index 
+            # full-text index 
             try:
                 session.run("""
                     CREATE FULLTEXT INDEX book_title_index 
@@ -43,23 +56,28 @@ class Neo4jQuerier:
             except Exception as e:
                 print(f"Error creating full-text index: {str(e)}")
                 
-                
-            # index for book ratings
+             # index for publication year queries (used in multiple queries)
             session.run("""
-                CREATE INDEX book_rating_index IF NOT EXISTS
-                FOR (b:Book) ON b.avg_rating
+                CREATE INDEX book_year_index IF NOT EXISTS
+                FOR (b:Book) ON b.publication_year
             """)
             
-            # index for book prices
+            # index for format queries (used in aggregation queries)
             session.run("""
-                CREATE INDEX price_amount_index IF NOT EXISTS
-                FOR (p:Price) ON p.list_price
+                CREATE INDEX book_format_index IF NOT EXISTS
+                FOR (b:Book) ON b.format
             """)
             
-            # composite index for category name and book count
+            # composite index for language and page count query
             session.run("""
-                CREATE INDEX category_name_index IF NOT EXISTS
-                FOR (c:Category) ON c.name
+                CREATE INDEX book_lang_pages_index IF NOT EXISTS
+                FOR (b:Book) ON (b.language_code, b.page_count)
+            """)
+            
+            # index for ebook queries
+            session.run("""
+                CREATE INDEX book_ebook_index IF NOT EXISTS
+                FOR (b:Book) ON b.is_ebook
             """)
 
 
@@ -123,6 +141,10 @@ class Neo4jQuerier:
             """
         }
         
+        # first, drop any existing indexes
+        print("\nDropping existing indexes...")
+        self.drop_indexes()
+        
         # test queries before creating indexes
         print("\nBefore creating indexes:")
         for name, query in queries.items():
@@ -163,7 +185,7 @@ class Neo4jQuerier:
                 print(f"Error executing query: {str(e)}")
 
 def main():
-    
+   
     # load environment variables
     load_dotenv()
     

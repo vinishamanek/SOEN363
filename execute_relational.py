@@ -36,38 +36,44 @@ class PostgresQuerier:
                 columns = [desc[0] for desc in cur.description]
                 return [dict(zip(columns, row)) for row in result], execution_time
             return [], execution_time
+        
+    def drop_indexes(self):
+        """Drop all existing indexes"""
+        with self.conn.cursor() as cur:
+            try:
+                cur.execute("""
+                    DROP INDEX IF EXISTS book_year_idx;
+                    DROP INDEX IF EXISTS book_lang_pages_idx;
+                    DROP INDEX IF EXISTS book_title_idx;
+                    DROP INDEX IF EXISTS physical_book_format_idx;
+                """)
+                self.conn.commit()
+                print("Dropped existing indexes")
+            except Exception as e:
+                print(f"Error dropping indexes: {str(e)}")
 
     def create_indexes(self):
         """Create indexes for better query performance"""
         with self.conn.cursor() as cur:
-            # index for ratings
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS ratings_avg_idx 
-                ON Ratings(avg_rating);
-            """)
             
-            # index for book prices
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS price_list_idx 
-                ON Price(list_price);
-            """)
-            
-            # index for category names
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS category_name_idx 
-                ON Category(name);
-            """)
-            
-            # index for publication year
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS book_year_idx 
                 ON Book(publication_year);
             """)
             
-            # index for language code
             cur.execute("""
-                CREATE INDEX IF NOT EXISTS book_language_idx 
-                ON Book(language_code);
+                CREATE INDEX IF NOT EXISTS book_lang_pages_idx 
+                ON Book(language_code, page_count);
+            """)
+            
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS physical_book_format_idx
+                ON PhysicalBook(format);
+            """)
+            
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS book_title_idx
+                ON Book USING gin(to_tsvector('english', title));
             """)
             
         self.conn.commit()
@@ -117,6 +123,10 @@ class PostgresQuerier:
             """
         }
 
+        # first, drop any existing indexes
+        print("\nDropping existing indexes...")
+        self.drop_indexes()
+    
         # test queries before creating indexes
         print("\nBefore creating indexes:")
         self._run_queries(queries)
