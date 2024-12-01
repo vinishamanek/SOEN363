@@ -39,14 +39,17 @@ ORDER BY year DESC
 
 5. indexes created in execute_cypher.py
 
-CREATE INDEX book_rating_index IF NOT EXISTS
-FOR (b:Book) ON b.avg_rating
-            
-CREATE INDEX price_amount_index IF NOT EXISTS
-FOR (p:Price) ON p.list_price
+CREATE INDEX book_year_index IF NOT EXISTS
+FOR (b:Book) ON b.publication_year
 
-CREATE INDEX category_name_index IF NOT EXISTS
-FOR (c:Category) ON c.name
+CREATE INDEX book_format_index IF NOT EXISTS
+FOR (b:Book) ON b.format
+            
+CREATE INDEX book_lang_pages_index IF NOT EXISTS
+FOR (b:Book) ON (b.language_code, b.page_count)
+
+CREATE INDEX book_ebook_index IF NOT EXISTS
+FOR (b:Book) ON b.is_ebook
 
 
 6. full text search
