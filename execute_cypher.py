@@ -29,7 +29,7 @@ class Neo4jQuerier:
                 session.run("DROP INDEX book_format_index IF EXISTS")
                 session.run("DROP INDEX book_lang_pages_index IF EXISTS")
                 session.run("DROP INDEX book_ebook_index IF EXISTS")
-                print("Dropped existing indexes")
+                # print("Dropped existing indexes")
             except Exception as e:
                 print(f"Error dropping indexes: {str(e)}")
                 
@@ -41,7 +41,7 @@ class Neo4jQuerier:
                 session.run("""
                     DROP INDEX book_title_index IF EXISTS
                 """)
-                print("Dropped existing full-text index")
+                # print("Dropped existing full-text index")
             except Exception as e:
                 print(f"Error dropping index: {str(e)}")
 
@@ -52,7 +52,7 @@ class Neo4jQuerier:
                     FOR (b:Book) 
                     ON EACH [b.title]
                 """)
-                print("Created full-text index")
+                print("created full-text index: book_title_index")
             except Exception as e:
                 print(f"Error creating full-text index: {str(e)}")
                 
@@ -61,24 +61,28 @@ class Neo4jQuerier:
                 CREATE INDEX book_year_index IF NOT EXISTS
                 FOR (b:Book) ON b.publication_year
             """)
+            print("created index: book_year_index")
             
             # index for format queries (used in aggregation queries)
             session.run("""
                 CREATE INDEX book_format_index IF NOT EXISTS
                 FOR (b:Book) ON b.format
             """)
+            print("created index: book_format_index")
             
             # composite index for language and page count query
             session.run("""
                 CREATE INDEX book_lang_pages_index IF NOT EXISTS
                 FOR (b:Book) ON (b.language_code, b.page_count)
             """)
+            print("created index: book_lang_pages_index")
             
             # index for ebook queries
             session.run("""
                 CREATE INDEX book_ebook_index IF NOT EXISTS
                 FOR (b:Book) ON b.is_ebook
             """)
+            print("created index: book_ebook_index")
 
 
     def demonstrate_queries(self):
@@ -142,33 +146,29 @@ class Neo4jQuerier:
         }
         
         # first, drop any existing indexes
-        print("\nDropping existing indexes...")
+        print("dropping existing indexes...")
         self.drop_indexes()
         
         # test queries before creating indexes
-        print("\nBefore creating indexes:")
+        print("\nbefore creating indexes:")
         for name, query in queries.items():
             try:
                 results, execution_time = self.measure_query_time(query)
-                print(f"\n{name}:")
-                print(f"Execution time: {execution_time:.10f} seconds")
-                print(f"Sample results: {results[:2]}")
+                print(f"{name}: execution time: {execution_time:.10f} seconds")
             except Exception as e:
                 print(f"\n{name}:")
                 print(f"Error executing query: {str(e)}")
 
         # create indexes
-        print("\nCreating indexes...")
+        print("\ncreating indexes...")
         self.create_indexes()
 
         # test queries after creating indexes
-        print("\nAfter creating indexes:")
+        print("\nafter creating indexes:")
         for name, query in queries.items():
             try:
                 results, execution_time = self.measure_query_time(query)
-                print(f"\n{name}:")
-                print(f"Execution time: {execution_time:.10f} seconds")
-                print(f"Sample results: {results[:2]}")
+                print(f"{name}: execution time: {execution_time:.10f} seconds")
             except Exception as e:
                 print(f"\n{name}:")
                 print(f"Error executing query: {str(e)}")
@@ -177,9 +177,7 @@ class Neo4jQuerier:
         for name, query in fulltext_query.items():
             try:
                 results, execution_time = self.measure_query_time(query, {"search_term": "python programming"})
-                print(f"\n{name}:")
-                print(f"Execution time: {execution_time:.10f} seconds")
-                print(f"Sample results: {results[:2]}")
+                print(f"{name}: execution time: {execution_time:.10f} seconds")
             except Exception as e:
                 print(f"\n{name}:")
                 print(f"Error executing query: {str(e)}")
