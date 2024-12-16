@@ -1,31 +1,45 @@
-Biblio-Tech (Books Database)
-Fall 2024 - SOEN 363: Data Systems for Software Engineers
+# Biblio-Tech (Books Database)
 
-Data Sources:
--Google Books API
--Open Library API
+**Fall 2024 - SOEN 363: Data Systems for Software Engineers**  
 
-Project Structure
+## Overview
+Biblio-Tech is a books database project that integrates data from the Google Books API and Open Library API into both relational and NoSQL databases.
 
-Relational Database - Phase 1
-- ddl.sql: Contains all table/view definitions and database schema
-- dml.sql: Contains all required query implementations
-- fetch.py: Script for fetching data from APIs
-- insert.py: Script for inserting data into database
-- main.py: Main script for data pipeline
-- relationaldiagram.png: Database schema diagram (ERD)
-- execute_relational.py: Additional script for performance testing (not a requirement for
-phase 1 submission)
+---
 
-NoSQL Database - Phase 2
-Project Structure
-- transfer.py: Script for migrating data from PostgreSQL to Neo4j
-- cypher.txt: Contains all Cypher query implementations
-- execute_cypher.py: Script for performance testing and query execution
-- nosqldiagram.png: Neo4j database (graph) diagram
-- bookdatabase_backup.sql: https://drive.google.com/file/d/1IjdChQXsLHD2RjP2efJ109vx9HWiEcG3/view?usp=drive_link (260MB)
+## Project Structure
 
-Data Migration
-- Source: PostgreSQL relational database from Phase 1
-- Destination: Neo4j graph database
-- Migration tool: Custom Python script (transfer.py)
+### **Relational Database (Phase 1)**
+
+This phase focuses on implementing a relational database using PostgreSQL.  
+
+**Files:**
+- `ddl.sql`: Contains all table/view definitions and the database schema.  
+- `dml.sql`: Implements all required SQL queries.  
+- `fetch.py`: Fetches data from the Google Books and Open Library APIs.  
+- `insert.py`: Inserts fetched data into the PostgreSQL database.  
+- `main.py`: The main script for the data pipeline, coordinating fetching and insertion.  
+- `relationaldiagram.png`: Entity Relationship Diagram (ERD) for the relational database.  
+- `execute_relational.py`: Script for performance testing of indexes.*  
+
+---
+
+### **NoSQL Database (Phase 2)**
+
+This phase migrates data to a Neo4j graph database and implements graph queries using Cypher.
+
+**Files:**
+- `transfer.py`: Migrates data from PostgreSQL to Neo4j.  
+- `cypher.txt`: Cypher queries for the Neo4j database.  
+- `execute_cypher.py`: Executes Cypher queries and performance testing of indexes.  
+- `nosqldiagram.png`: Graph database diagram for Neo4j.  
+- `bookdatabase_backup.sql`: Backup of the database.  
+  **[Download Link (260MB)](https://drive.google.com/file/d/1IjdChQXsLHD2RjP2efJ109vx9HWiEcG3/view?usp=drive_link)**  
+
+---
+
+## Data Migration
+
+**Source:** PostgreSQL Relational Database  
+**Destination:** Neo4j NoSQL Graph Database  
+**Migration Tool:** Custom Python script (`transfer.py`)  
