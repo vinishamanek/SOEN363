@@ -64,8 +64,6 @@ class BookDataPipeline:
         Returns:
             bool: True if batch was processed successfully, False otherwise
         """
-        
-        logger.info(f"Current API keys: {self.api_keys}")  # Add this line
 
         try:
             # fetch random books from Google Books API
